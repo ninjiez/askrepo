@@ -28,6 +28,33 @@ struct ContentView: View {
     
     private let appVersion = "0.8"
     
+    private let systemStructuredOutputPrompt = """
+
+
+        1. Specify locations and changes:
+           - File path/name
+           - Function/class being modified
+           - The type of change (add/modify/remove)
+
+        2. Show complete code for:
+           - Any modified functions (entire function)
+           - New functions or methods
+           - Changed class definitions
+           - Modified configuration blocks
+           Only show code units that actually change.
+
+        3. Format all responses as:
+
+           File: path/filename.ext
+           Change: Brief description of what's changing
+           ```language
+           [Complete code block for this change]
+
+        You only need to specify the file and path for the first change in a file, and split the rest into separate codeblocks.
+    """
+    
+    
+    
     // MARK: - App Icon Loading
     private func loadAppIcon() -> NSImage? {
         // Try to load from bundle resources
@@ -521,7 +548,6 @@ struct ContentView: View {
             }
         }
     }
-    
     private var modernCopyButton: some View {
         Button {
             copyToClipboard()
@@ -541,7 +567,7 @@ struct ContentView: View {
                 Image(systemName: copyFeedbackShown ? "checkmark.circle.fill" : "doc.on.clipboard.fill")
                     .font(.system(size: 10, weight: .semibold))
                 
-                Text(copyFeedbackShown ? "Copied!" : "Copy")
+                Text(copyFeedbackShown ? "Copied!" : "Copy ⌘⇧C")
                     .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
             }
@@ -550,13 +576,14 @@ struct ContentView: View {
             .padding(.vertical, ModernDesign.spacing1)
             .fixedSize(horizontal: true, vertical: false)
         }
+        .keyboardShortcut("c", modifiers: [.command, .shift]) // Added keyboard shortcut
         .disabled(selectedFiles.isEmpty && promptText.isEmpty)
         .background(
             Capsule()
                 .fill(
-                    copyFeedbackShown 
+                    copyFeedbackShown
                     ? ModernDesign.accentSuccess
-                    : (selectedFiles.isEmpty && promptText.isEmpty 
+                    : (selectedFiles.isEmpty && promptText.isEmpty
                         ? ModernDesign.textTertiary
                         : ModernDesign.accentPrimary)
                 )
@@ -1186,9 +1213,13 @@ struct ContentView: View {
     private func copyToClipboard() {
         var output = ""
         
+        
+        
         if !promptText.isEmpty {
             output += "<prompt>\n\(promptText)\n</prompt>\n\n"
         }
+        
+        output += "<prompt>\n\(systemStructuredOutputPrompt)\n</prompt>\n\n"
         
         if !selectedFiles.isEmpty {
             output += "<codebase>\n"
