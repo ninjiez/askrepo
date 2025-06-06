@@ -72,3 +72,5 @@ fastlane/test_output
 
 # Code Injection
 iOSInjectionProject/ 
+*.tsbuildinfo
+packages/db/src/generated/*

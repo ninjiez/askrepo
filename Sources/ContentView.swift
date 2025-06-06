@@ -17,6 +17,22 @@ struct ContentView: View {
     @State private var gitIgnoreFileToSelect: String?
     @State private var showingSettings = false
 
+    // Search and sorting for selected files
+    @State private var searchText: String = ""
+    @State private var sortOption: FileSortOption = .hierarchical
+    
+    enum FileSortOption: String, CaseIterable {
+        case hierarchical = "Structure"
+        case tokens = "Tokens"
+        
+        var icon: String {
+            switch self {
+            case .hierarchical: return "folder.fill"
+            case .tokens: return "number"
+            }
+        }
+    }
+
     @StateObject private var settings = Settings()
     @FocusState private var isPromptFocused: Bool
     @State private var showingPromptsMenu = false
@@ -27,6 +43,49 @@ struct ContentView: View {
     @State private var tokenCountingTask: Task<Void, Never>?
     
     private let appVersion = "0.8"
+    
+    // MARK: - Computed Properties
+    private var filteredAndSortedFiles: [String] {
+        let filtered = searchText.isEmpty 
+            ? Array(selectedFiles)
+            : Array(selectedFiles).filter { filePath in
+                let fileName = URL(fileURLWithPath: filePath).lastPathComponent
+                let relativePath = getRelativePath(for: filePath)
+                return fileName.localizedCaseInsensitiveContains(searchText) ||
+                       relativePath.localizedCaseInsensitiveContains(searchText)
+            }
+        
+        switch sortOption {
+        case .hierarchical:
+            return filtered.sorted { (path1, path2) in
+                // Sort hierarchically: by directory structure first, then by filename
+                let components1 = path1.components(separatedBy: "/")
+                let components2 = path2.components(separatedBy: "/")
+                
+                // Compare directory structure
+                let minCount = min(components1.count, components2.count)
+                for i in 0..<(minCount - 1) {
+                    let comparison = components1[i].localizedCaseInsensitiveCompare(components2[i])
+                    if comparison != .orderedSame {
+                        return comparison == .orderedAscending
+                    }
+                }
+                
+                // If directory structure is the same, compare filenames
+                if components1.count != components2.count {
+                    return components1.count < components2.count
+                }
+                
+                return components1.last?.localizedCaseInsensitiveCompare(components2.last ?? "") == .orderedAscending
+            }
+        case .tokens:
+            return filtered.sorted { path1, path2 in
+                let tokens1 = getFileTokenCount(for: path1)
+                let tokens2 = getFileTokenCount(for: path2)
+                return tokens1 > tokens2 // Sort by tokens descending
+            }
+        }
+    }
     
     // MARK: - App Icon Loading
     private func loadAppIcon() -> NSImage? {
@@ -241,20 +300,20 @@ struct ContentView: View {
                         .clipShape(RoundedRectangle(cornerRadius: ModernDesign.radiusSmall))
                 } else {
                     // Fallback to the original gradient design
-                    ZStack {
-                        RoundedRectangle(cornerRadius: ModernDesign.radiusSmall)
-                            .fill(
-                                LinearGradient(
-                                    colors: [ModernDesign.accentPrimary, ModernDesign.accentSecondary],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
+                ZStack {
+                    RoundedRectangle(cornerRadius: ModernDesign.radiusSmall)
+                        .fill(
+                            LinearGradient(
+                                colors: [ModernDesign.accentPrimary, ModernDesign.accentSecondary],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
                             )
+                        )
                             .frame(width: 48, height: 48)
-                        
-                        Image(systemName: "doc.text.magnifyingglass")
+                    
+                    Image(systemName: "doc.text.magnifyingglass")
                             .font(.system(size: 24, weight: .semibold))
-                            .foregroundColor(.white)
+                        .foregroundColor(.white)
                     }
                 }
                 
@@ -390,8 +449,28 @@ struct ContentView: View {
                             .fill(ModernDesign.accentPrimary)
                     )
                     .buttonStyle(.plain)
+                
+                if !selectedDirectories.isEmpty {
+                    Button {
+                        refreshDirectories()
+                    } label: {
+                        HStack(spacing: ModernDesign.spacing1) {
+                            Image(systemName: "arrow.clockwise.circle.fill")
+                                .font(.system(size: 10, weight: .semibold))
+                            
+                            Text("Refresh")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, ModernDesign.spacing2)
+                        .padding(.vertical, 6)
+                    }
+                    .background(
+                        Capsule()
+                            .fill(ModernDesign.accentSuccess)
+                    )
+                    .buttonStyle(.plain)
                     
-                    if !selectedDirectories.isEmpty {
                         Button {
                             showingClearAllConfirmation = true
                         } label: {
@@ -460,7 +539,7 @@ struct ContentView: View {
                 HStack(spacing: ModernDesign.spacing2) {
                     modernPromptsDropdown
                     modernSaveButton
-                    modernCopyButton
+                modernCopyButton
                 }
             }
             .padding(.horizontal, ModernDesign.spacing4)
@@ -829,25 +908,106 @@ struct ContentView: View {
                 
                 Spacer()
                 
-                HStack(spacing: ModernDesign.spacing2) {
-                    modernMetricBadge(
-                        value: "\(selectedFiles.count)",
-                        label: "files",
-                        color: ModernDesign.accentSuccess
-                    )
-                    
-                    modernMetricBadge(
-                        value: "\(formatTokenCount(totalTokenCount - promptTokenCount))",
-                        label: "tokens",
-                        color: ModernDesign.accentWarning
-                    )
+                if !selectedFiles.isEmpty {
+                    HStack(spacing: ModernDesign.spacing1) {
+                        // Search field
+                        HStack(spacing: 4) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(ModernDesign.textTertiary)
+                            
+                            TextField("Search...", text: $searchText)
+                                .font(.system(size: 11, weight: .regular))
+                                .foregroundColor(ModernDesign.textPrimary)
+                                .textFieldStyle(.plain)
+                                .frame(width: 80)
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(ModernDesign.backgroundSecondary)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(ModernDesign.borderLight, lineWidth: 0.5)
+                        )
+                        
+                        // Sort picker
+                        Menu {
+                            ForEach(FileSortOption.allCases, id: \.self) { option in
+                                Button {
+                                    sortOption = option
+                                } label: {
+                                    HStack {
+                                        Image(systemName: option.icon)
+                                        Text(option.rawValue)
+                                        if sortOption == option {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 2) {
+                                Image(systemName: sortOption.icon)
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundColor(ModernDesign.textPrimary)
+                                Text(sortOption.rawValue)
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(ModernDesign.textPrimary)
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 7, weight: .medium))
+                                    .foregroundColor(ModernDesign.textTertiary)
+                            }
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(ModernDesign.backgroundSecondary)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(ModernDesign.borderLight, lineWidth: 0.5)
+                            )
+                        }
+                        .menuStyle(.button)
+                        .fixedSize()
+                        
+                        modernMetricBadge(
+                            value: "\(filteredAndSortedFiles.count)",
+                            label: "files",
+                            color: ModernDesign.accentSuccess
+                        )
+                        
+                        modernMetricBadge(
+                            value: "\(formatTokenCount(totalTokenCount - promptTokenCount))",
+                            label: "tokens",
+                            color: ModernDesign.accentWarning
+                        )
+                    }
+                } else {
+                    HStack(spacing: ModernDesign.spacing2) {
+                        modernMetricBadge(
+                            value: "\(selectedFiles.count)",
+                            label: "files",
+                            color: ModernDesign.accentSuccess
+                        )
+                        
+                        modernMetricBadge(
+                            value: "\(formatTokenCount(totalTokenCount - promptTokenCount))",
+                            label: "tokens",
+                            color: ModernDesign.accentWarning
+                        )
+                    }
                 }
             }
             
             if !selectedFiles.isEmpty {
+                
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: ModernDesign.spacing1) {
-                        ForEach(Array(selectedFiles).sorted(), id: \.self) { filePath in
+                        ForEach(filteredAndSortedFiles, id: \.self) { filePath in
                             modernFileChip(filePath: filePath)
                         }
                     }
@@ -1075,6 +1235,53 @@ struct ContentView: View {
         
         // Save to UserDefaults
         saveDirectoriesToUserDefaults()
+    }
+    
+    private func refreshDirectories() {
+        // Store currently selected files to preserve selection where possible
+        let previouslySelectedFiles = Set(selectedFiles)
+        
+        // Clear file token cache to force recalculation
+        fileTokenCache.removeAll()
+        
+        // Reload all directories
+        loadDirectories()
+        
+        // Update selected files - keep files that still exist, remove files that no longer exist
+        var updatedSelectedFiles: Set<String> = []
+        
+        for filePath in previouslySelectedFiles {
+            // Check if the file still exists
+            if FileManager.default.fileExists(atPath: filePath) {
+                // Check if the file is still not ignored by current settings
+                if !settings.shouldIgnore(path: filePath, isDirectory: false) {
+                    // Check if the file is still not ignored by gitignore
+                    var shouldInclude = true
+                    for directory in selectedDirectories {
+                        if filePath.hasPrefix(directory.path) {
+                            let gitignoreParser = GitIgnoreParser.loadFromDirectory(directory)
+                            if let parser = gitignoreParser {
+                                if parser.shouldIgnore(path: filePath, isDirectory: false, relativeTo: directory.path) {
+                                    shouldInclude = false
+                                    break
+                                }
+                            }
+                        }
+                    }
+                    
+                    if shouldInclude {
+                        updatedSelectedFiles.insert(filePath)
+                    }
+                }
+            }
+        }
+        
+        // Update selected files
+        selectedFiles = updatedSelectedFiles
+        
+        // Recalculate token counts
+        calculateFileTokensOnly()
+        updateTotalTokenCount()
     }
     
     private func confirmIncludeGitIgnoredFile() {
