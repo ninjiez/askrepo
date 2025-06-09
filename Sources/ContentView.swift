@@ -361,12 +361,12 @@ struct ContentView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(ModernDesign.accentPrimary)
                         .frame(width: 32, height: 32)
+                        .background(
+                            Circle()
+                                .fill(ModernDesign.accentPrimary.opacity(0.12))
+                        )
                 }
                 .buttonStyle(.plain)
-                .background(
-                    Circle()
-                        .fill(ModernDesign.accentPrimary.opacity(0.12))
-                )
             }
         }
         .padding(.horizontal, ModernDesign.spacing5)
@@ -443,11 +443,11 @@ struct ContentView: View {
                         .foregroundColor(.white)
                         .padding(.horizontal, ModernDesign.spacing2)
                         .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(ModernDesign.accentPrimary)
+                        )
                     }
-                    .background(
-                        Capsule()
-                            .fill(ModernDesign.accentPrimary)
-                    )
                     .buttonStyle(.plain)
                 
                 if !selectedDirectories.isEmpty {
@@ -464,11 +464,11 @@ struct ContentView: View {
                         .foregroundColor(.white)
                         .padding(.horizontal, ModernDesign.spacing2)
                         .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(ModernDesign.accentSuccess)
+                        )
                     }
-                    .background(
-                        Capsule()
-                            .fill(ModernDesign.accentSuccess)
-                    )
                     .buttonStyle(.plain)
                     
                         Button {
@@ -484,11 +484,11 @@ struct ContentView: View {
                             .foregroundColor(.white)
                             .padding(.horizontal, ModernDesign.spacing2)
                             .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .fill(ModernDesign.accentDanger)
+                            )
                         }
-                        .background(
-                            Capsule()
-                                .fill(ModernDesign.accentDanger)
-                        )
                         .buttonStyle(.plain)
                     }
                 }
@@ -628,18 +628,18 @@ struct ContentView: View {
             .padding(.horizontal, ModernDesign.spacing2)
             .padding(.vertical, ModernDesign.spacing1)
             .fixedSize(horizontal: true, vertical: false)
+            .background(
+                Capsule()
+                    .fill(
+                        copyFeedbackShown 
+                        ? ModernDesign.accentSuccess
+                        : (selectedFiles.isEmpty && promptText.isEmpty 
+                            ? ModernDesign.textTertiary
+                            : ModernDesign.accentPrimary)
+                    )
+            )
         }
         .disabled(selectedFiles.isEmpty && promptText.isEmpty)
-        .background(
-            Capsule()
-                .fill(
-                    copyFeedbackShown 
-                    ? ModernDesign.accentSuccess
-                    : (selectedFiles.isEmpty && promptText.isEmpty 
-                        ? ModernDesign.textTertiary
-                        : ModernDesign.accentPrimary)
-                )
-        )
         .buttonStyle(.plain)
         .animation(.easeInOut(duration: 0.2), value: copyFeedbackShown)
     }
@@ -714,18 +714,18 @@ struct ContentView: View {
             .padding(.horizontal, ModernDesign.spacing2)
             .padding(.vertical, ModernDesign.spacing1)
             .fixedSize(horizontal: true, vertical: false)
+            .background(
+                Capsule()
+                    .fill(
+                        saveFeedbackShown 
+                        ? ModernDesign.accentSuccess
+                        : (selectedFiles.isEmpty && promptText.isEmpty 
+                            ? ModernDesign.textTertiary
+                            : ModernDesign.accentPrimary)
+                    )
+            )
         }
         .disabled(selectedFiles.isEmpty && promptText.isEmpty)
-        .background(
-            Capsule()
-                .fill(
-                    saveFeedbackShown 
-                    ? ModernDesign.accentSuccess
-                    : (selectedFiles.isEmpty && promptText.isEmpty 
-                        ? ModernDesign.textTertiary
-                        : ModernDesign.accentPrimary)
-                )
-        )
         .buttonStyle(.plain)
         .animation(.easeInOut(duration: 0.2), value: saveFeedbackShown)
     }
@@ -780,12 +780,12 @@ struct ContentView: View {
                 .foregroundColor(.white)
                 .padding(.horizontal, ModernDesign.spacing4)
                 .padding(.vertical, ModernDesign.spacing2)
+                .background(
+                    Capsule()
+                        .fill(ModernDesign.accentPrimary)
+                        .shadow(color: ModernDesign.accentPrimary.opacity(0.3), radius: 4, x: 0, y: 2)
+                )
             }
-            .background(
-                Capsule()
-                    .fill(ModernDesign.accentPrimary)
-                    .shadow(color: ModernDesign.accentPrimary.opacity(0.3), radius: 4, x: 0, y: 2)
-            )
             .buttonStyle(.plain)
             
             Spacer()
@@ -859,7 +859,7 @@ struct ContentView: View {
                             )
                     )
                 
-                // TextEditor with exact same behavior as Selected Files ScrollView
+                // TextEditor
                 ZStack(alignment: .topLeading) {
                     TextEditor(text: $promptText)
                         .font(.system(size: 14, weight: .regular))
@@ -1119,6 +1119,8 @@ struct ContentView: View {
                 Image(systemName: "xmark")
                     .font(.system(size: 8, weight: .bold))
                     .foregroundColor(ModernDesign.textTertiary)
+                    .frame(width: 16, height: 16)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }

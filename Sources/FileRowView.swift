@@ -119,6 +119,8 @@ struct FileRowView: View {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(ModernDesign.textTertiary)
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .opacity(isHovered ? 1.0 : 0.7)
@@ -145,7 +147,8 @@ struct FileRowView: View {
                 Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(ModernDesign.textSecondary)
-                    .frame(width: 12, height: 12)
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         } else {
