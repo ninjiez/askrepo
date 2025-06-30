@@ -9,11 +9,15 @@ let package = Package(
     products: [
         .executable(name: "AskRepo", targets: ["AskRepo"])
     ],
-    dependencies: [],
+    dependencies: [
+        .package(url: "https://github.com/aespinilla/Tiktoken.git", branch: "main")
+    ],
     targets: [
         .executableTarget(
             name: "AskRepo",
-            dependencies: [],
+            dependencies: [
+                .product(name: "Tiktoken", package: "Tiktoken")
+            ],
             path: "Sources",
             resources: [
                 .copy("../Resources")

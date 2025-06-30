@@ -1,11 +1,53 @@
 import Foundation
 
 struct FileSystemHelper {
-    static func loadDirectory(_ url: URL, settings: Settings? = nil) -> [FileNode] {
+    static func loadDirectoryAsync(_ url: URL, settings: Settings? = nil, completion: @escaping (Result<[FileNode], FileSystemError>) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = loadDirectorySafe(url, settings: settings)
+            DispatchQueue.main.async {
+                completion(result)
+            }
+        }
+    }
+    
+    /// Modern async/await version of directory loading
+    static func loadDirectoryAsync(_ url: URL, settings: Settings? = nil) async -> Result<[FileNode], FileSystemError> {
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let result = loadDirectorySafe(url, settings: settings)
+                continuation.resume(returning: result)
+            }
+        }
+    }
+    
+    static func loadDirectoryAsync(_ url: URL, settings: Settings? = nil, completion: @escaping ([FileNode]) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let fileNodes = loadDirectorySync(url, settings: settings)
+            DispatchQueue.main.async {
+                completion(fileNodes)
+            }
+        }
+    }
+    static func loadDirectorySafe(_ url: URL, settings: Settings? = nil) -> Result<[FileNode], FileSystemError> {
+        // Validate path first
+        guard FilePathValidator.isValidDirectoryPath(url.path) else {
+            return .failure(.invalidPath(url.path))
+        }
+        
         guard url.startAccessingSecurityScopedResource() else {
-            return []
+            return .failure(.accessDenied(url.path))
         }
         defer { url.stopAccessingSecurityScopedResource() }
+        
+        // Check if path exists and is a directory
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
+            return .failure(.fileNotFound(url.path))
+        }
+        
+        guard isDirectory.boolValue else {
+            return .failure(.notADirectory(url.path))
+        }
         
         // Load .gitignore if it exists
         let gitignoreParser = GitIgnoreParser.loadFromDirectory(url)
@@ -17,8 +59,8 @@ struct FileSystemHelper {
                 options: []
             )
             
-            return contents.compactMap { fileURL in
-                createFileNode(from: fileURL, gitignoreParser: gitignoreParser, basePath: url.path, settings: settings)
+            let nodes = contents.compactMap { fileURL in
+                createFileNodeSafe(from: fileURL, gitignoreParser: gitignoreParser, basePath: url.path, settings: settings)
             }.sorted { lhs, rhs in
                 // Sort directories first, then files, both alphabetically
                 if lhs.isDirectory && !rhs.isDirectory {
@@ -29,10 +71,32 @@ struct FileSystemHelper {
                     return lhs.name.localizedCompare(rhs.name) == .orderedAscending
                 }
             }
+            
+            return .success(nodes)
+            
         } catch {
-            print("Error loading directory: \(error)")
+            return .failure(.unknown(error))
+        }
+    }
+    
+    static func loadDirectorySync(_ url: URL, settings: Settings? = nil) -> [FileNode] {
+        let result = loadDirectorySafe(url, settings: settings)
+        switch result {
+        case .success(let nodes):
+            return nodes
+        case .failure(let error):
+            print("Error loading directory: \(error.localizedDescription)")
             return []
         }
+    }
+    
+    private static func createFileNodeSafe(from url: URL, gitignoreParser: GitIgnoreParser?, basePath: String, settings: Settings? = nil) -> FileNode? {
+        // Validate the file path
+        guard FilePathValidator.isValidPath(url.path) else {
+            return nil
+        }
+        
+        return createFileNode(from: url, gitignoreParser: gitignoreParser, basePath: basePath, settings: settings)
     }
     
     private static func createFileNode(from url: URL, gitignoreParser: GitIgnoreParser?, basePath: String, settings: Settings? = nil) -> FileNode? {
@@ -70,7 +134,7 @@ struct FileSystemHelper {
             var children: [FileNode] = []
             if isDirectory {
                 // Load children for directories (but don't recurse too deep)
-                children = loadDirectory(url, settings: settings)
+                children = loadDirectorySync(url, settings: settings)
             }
             
             return FileNode(
@@ -103,10 +167,29 @@ struct FileSystemHelper {
         return false
     }
     
-    static func readFileContent(_ filePath: String) -> String? {
-        guard !filePath.isEmpty else { return nil }
+    static func readFileContentSafe(_ filePath: String) -> Result<String, FileSystemError> {
+        guard !filePath.isEmpty else {
+            return .failure(.invalidPath(filePath))
+        }
+        
+        // Validate the file path for security
+        guard FilePathValidator.isValidPath(filePath) else {
+            return .failure(.invalidPath(filePath))
+        }
         
         let url = URL(fileURLWithPath: filePath)
+        
+        // Check if file exists
+        guard FileManager.default.fileExists(atPath: filePath) else {
+            return .failure(.fileNotFound(filePath))
+        }
+        
+        // Check if it's a regular file (not directory)
+        var isDirectory: ObjCBool = false
+        FileManager.default.fileExists(atPath: filePath, isDirectory: &isDirectory)
+        guard !isDirectory.boolValue else {
+            return .failure(.notADirectory(filePath))
+        }
         
         do {
             // Check if file is readable text
@@ -114,17 +197,52 @@ struct FileSystemHelper {
             
             // Try to decode as UTF-8 text
             if let content = String(data: data, encoding: .utf8) {
-                return content
+                return .success(content)
             }
             
             // If UTF-8 fails, try other encodings
             if let content = String(data: data, encoding: .ascii) {
-                return content
+                return .success(content)
             }
             
-            return nil
+            return .failure(.encodingFailure(filePath))
+            
+        } catch CocoaError.fileReadNoPermission {
+            return .failure(.accessDenied(filePath))
         } catch {
-            print("Error reading file \(filePath): \(error)")
+            return .failure(.unknown(error))
+        }
+    }
+    
+    static func readFileContent(_ filePath: String) -> String? {
+        let result = readFileContentSafe(filePath)
+        switch result {
+        case .success(let content):
+            return content
+        case .failure(let error):
+            print("Error reading file: \(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    /// Asynchronously read file content to avoid blocking the main thread
+    static func readFileContentAsync(_ filePath: String) async -> Result<String, FileSystemError> {
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let result = readFileContentSafe(filePath)
+                continuation.resume(returning: result)
+            }
+        }
+    }
+    
+    /// Convenience async method that returns optional string
+    static func readFileContentAsyncOptional(_ filePath: String) async -> String? {
+        let result = await readFileContentAsync(filePath)
+        switch result {
+        case .success(let content):
+            return content
+        case .failure(let error):
+            print("Error reading file: \(error.localizedDescription)")
             return nil
         }
     }
