@@ -328,7 +328,7 @@ struct ContentView: View {
     private var mainContentArea: some View {
         HStack(spacing: ModernDesign.spacing4) {
             FileExplorerView(viewModel: viewModel)
-            InstructionsView(viewModel: viewModel)
+            InstructionsPanel(viewModel: viewModel)
         }
         .padding(.horizontal, ModernDesign.spacing5)
         .padding(.vertical, ModernDesign.spacing4)
