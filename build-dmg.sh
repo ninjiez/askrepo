@@ -34,6 +34,11 @@ if [ -f "Resources/AppIcon.icns" ]; then
     echo "🎨 Added app icon to bundle"
 fi
 
+# Sign the app to reduce quarantine issues
+echo "🔐 Signing AskRepo.app..."
+codesign --force --deep --sign - "$BUILD_DIR/$APP_NAME"
+codesign --verify --verbose "$BUILD_DIR/$APP_NAME" || echo "⚠️  Signature verification failed, continuing anyway..."
+
 # Create Info.plist
 cat > "$BUILD_DIR/$APP_NAME/Contents/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>

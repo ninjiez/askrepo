@@ -9,7 +9,7 @@
 
 **A beautiful, modern macOS app that helps you prepare code for AI assistants**
 
-[Download DMG](https://github.com/ninjiez/askrepo/releases/download/v0.8/askrepo_v0.8.dmg) • [Features](#-features) • [Install](#-installation) • [Contribute](#-contributing)
+[Download DMG](https://github.com/ninjiez/askrepo/releases/latest) • [Features](#-features) • [Install](#-installation) • [Contribute](#-contributing)
 
 **If AskRepo helps your workflow, consider giving it a ⭐ and following me on X @ [@flashloanz](https://x.com/flashloanz)**.
 
@@ -63,10 +63,13 @@ Instead of manually copying and pasting files, AskRepo provides an elegant solut
 ## 💾 Installation
 
 ### Option 1: Download DMG (Recommended)
-1. Download the latest [AskRepo.dmg](https://github.com/ninjiez/askrepo/releases/download/v0.8/askrepo_v0.8.dmg)
+1. Download the latest [AskRepo.dmg](https://github.com/ninjiez/askrepo/releases/latest)
 2. Open the DMG file
 3. Drag AskRepo to your Applications folder
-4. Launch AskRepo from Applications or Spotlight
+4. **Important**: If you see "AskRepo.app is damaged" error:
+   - Open Terminal and run: `xattr -cr /Applications/AskRepo.app`
+   - Or go to System Settings > Privacy & Security and click "Open Anyway"
+5. Launch AskRepo from Applications or Spotlight
 
 ### Option 2: Build from Source```bash
 # Clone the repository
