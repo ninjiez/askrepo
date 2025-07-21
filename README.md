@@ -62,22 +62,36 @@ Instead of manually copying and pasting files, AskRepo provides an elegant solut
 
 ## 💾 Installation
 
-### Option 1: Download DMG (Recommended)
+### Option 1: Download DMG
+
+> **Note**: AskRepo is not code-signed because I don't have an Apple Developer account (it costs $99/year). I developed this app for personal use and decided to share it with the community. When you download it, macOS will show a security warning.
+
 1. Download the latest [AskRepo.dmg](https://github.com/ninjiez/askrepo/releases/latest)
 2. Open the DMG file
 3. Drag AskRepo to your Applications folder
-4. **Important**: If you see "AskRepo.app is damaged" error:
-   - Open Terminal and run: `xattr -cr /Applications/AskRepo.app`
-   - Or go to System Settings > Privacy & Security and click "Open Anyway"
+4. **Fix the security warning** by opening Terminal and running:
+   ```bash
+   cd /Applications
+   xattr -dr com.apple.quarantine AskRepo.app
+   ```
 5. Launch AskRepo from Applications or Spotlight
 
-### Option 2: Build from Source```bash
+Alternatively, if you prefer to build from source (which avoids the security warning), see Option 2 below.
+
+### Option 2: Build from Source (No Security Warnings)
+
+Building from source avoids all security warnings since the app runs locally without quarantine flags.
+
+```bash
 # Clone the repository
 git clone https://github.com/ninjiez/askrepo.git
 cd askrepo
 
-# Build and run
-swift build
+# Build the app and create DMG
+./build.sh        # Creates the .app bundle
+./build-dmg.sh    # Creates the DMG installer
+
+# Or run directly
 swift run
 
 # Or open in Xcode
