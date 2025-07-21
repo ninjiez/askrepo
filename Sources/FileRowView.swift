@@ -119,6 +119,8 @@ struct FileRowView: View {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(ModernDesign.textTertiary)
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .opacity(isHovered ? 1.0 : 0.7)
@@ -145,7 +147,8 @@ struct FileRowView: View {
                 Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(ModernDesign.textSecondary)
-                    .frame(width: 12, height: 12)
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         } else {
@@ -235,104 +238,11 @@ struct FileRowView: View {
     }
     
     private func getFileIcon() -> String {
-        let fileName = node.name.lowercased()
-        let fileExtension = (fileName as NSString).pathExtension
-        
-        // Map file extensions to appropriate SF Symbols
-        switch fileExtension {
-        case "swift":
-            return "doc.text.fill"
-        case "js", "jsx":
-            return "curlybraces"
-        case "ts", "tsx":
-            return "curlybraces.square"
-        case "html", "htm":
-            return "globe"
-        case "css", "scss", "less":
-            return "paintbrush.fill"
-        case "md", "markdown":
-            return "doc.richtext"
-        case "json":
-            return "curlybraces.square.fill"
-        case "xml":
-            return "doc.badge.gearshape"
-        case "yml", "yaml":
-            return "doc.plaintext"
-        case "txt":
-            return "doc.plaintext.fill"
-        case "pdf":
-            return "doc.fill"
-        case "png", "jpg", "jpeg", "gif", "svg", "webp":
-            return "photo.fill"
-        case "mp4", "mov", "avi":
-            return "video.fill"
-        case "mp3", "wav", "m4a":
-            return "music.note"
-        case "zip", "tar", "gz", "rar":
-            return "archivebox.fill"
-        case "py":
-            return "terminal.fill"
-        case "rb":
-            return "diamond.fill"
-        case "go":
-            return "arrow.right.circle.fill"
-        case "rs":
-            return "gear.circle.fill"
-        case "c", "cpp", "h", "hpp":
-            return "c.circle.fill"
-        case "java":
-            return "cup.and.saucer.fill"
-        case "php":
-            return "server.rack"
-        default:
-            return "doc.text"
-        }
+        return FileIconProvider.icon(for: node.path)
     }
     
     private func getFileIconColor() -> Color {
-        let fileName = node.name.lowercased()
-        let fileExtension = (fileName as NSString).pathExtension
-        
-        switch fileExtension {
-        case "swift":
-            return .orange
-        case "js", "jsx":
-            return Color(red: 0.8, green: 0.6, blue: 0.0) // Dark yellow instead of yellow
-        case "ts", "tsx":
-            return .blue
-        case "html", "htm":
-            return .orange
-        case "css", "scss", "less":
-            return .blue
-        case "md", "markdown":
-            return Color(red: 0.4, green: 0.4, blue: 0.4) // Dark gray instead of gray
-        case "json":
-            return .green
-        case "xml":
-            return .purple
-        case "yml", "yaml":
-            return .red
-        case "png", "jpg", "jpeg", "gif", "svg", "webp":
-            return .pink
-        case "mp4", "mov", "avi":
-            return .purple
-        case "mp3", "wav", "m4a":
-            return .green
-        case "py":
-            return .blue
-        case "rb":
-            return .red
-        case "go":
-            return .cyan
-        case "rs":
-            return .orange
-        case "java":
-            return .red
-        case "php":
-            return .purple
-        default:
-            return Color(red: 0.3, green: 0.3, blue: 0.3) // Dark gray instead of primary
-        }
+        return FileIconProvider.color(for: node.path)
     }
     
     private func isDirectoryFullySelected() -> Bool {

@@ -480,9 +480,15 @@ struct SettingsView: View {
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(ModernDesign.textSecondary)
                     
-                    Link("@flashloanz", destination: URL(string: "https://x.com/flashloanz")!)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(ModernDesign.accentPrimary)
+                    if let url = URL(string: "https://x.com/flashloanz") {
+                        Link("@flashloanz", destination: url)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(ModernDesign.accentPrimary)
+                    } else {
+                        Text("@flashloanz")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(ModernDesign.accentPrimary)
+                    }
                 }
             }
             
