@@ -9,6 +9,7 @@ struct FileRowView: View {
     let onGitIgnoreSelect: ((String) -> Void)?
     @State private var isExpanded: Bool = false
     @State private var isHovered: Bool = false
+    @Environment(\.colorScheme) private var colorScheme
     
     // Modern Design System - matching ContentView
     private struct ModernDesign {
@@ -17,15 +18,6 @@ struct FileRowView: View {
         static let spacing3: CGFloat = 18
         static let radiusSmall: CGFloat = 8
         static let radiusMedium: CGFloat = 12
-        
-        static let backgroundTertiary = Color(red: 0.96, green: 0.97, blue: 0.98)
-        static let backgroundGlass = Color.white.opacity(0.8)
-        static let textPrimary = Color(red: 0.11, green: 0.11, blue: 0.12)
-        static let textSecondary = Color(red: 0.47, green: 0.47, blue: 0.49)
-        static let textTertiary = Color(red: 0.68, green: 0.68, blue: 0.70)
-        static let accentPrimary = Color(red: 0.0, green: 0.48, blue: 1.0)
-        static let accentSuccess = Color(red: 0.20, green: 0.78, blue: 0.35)
-        static let borderLight = Color(red: 0.90, green: 0.90, blue: 0.92)
     }
     
     private let indentWidth: CGFloat = 16
@@ -118,7 +110,7 @@ struct FileRowView: View {
             }) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(ModernDesign.textTertiary)
+                    .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                     .frame(width: 20, height: 20)
                     .contentShape(Rectangle())
             }
@@ -146,7 +138,7 @@ struct FileRowView: View {
             }) {
                 Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(ModernDesign.textSecondary)
+                    .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
                     .frame(width: 20, height: 20)
                     .contentShape(Rectangle())
             }
@@ -195,7 +187,7 @@ struct FileRowView: View {
             getFileIcon()
         )
         .font(.system(size: isTopLevel ? 13 : 12, weight: .medium))
-        .foregroundColor(node.isDirectory ? ModernDesign.accentPrimary : getFileIconColor())
+        .foregroundColor(node.isDirectory ? ColorScheme.Dynamic.accentPrimary(colorScheme) : getFileIconColor())
         .frame(width: 16, alignment: .center)
     }
     
@@ -203,7 +195,7 @@ struct FileRowView: View {
         Text(node.name)
             .font(.system(size: isTopLevel ? 13 : 12, weight: isTopLevel ? .semibold : .medium))
             .lineLimit(1)
-            .foregroundColor(ModernDesign.textPrimary)
+            .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
     }
     
     @ViewBuilder
@@ -212,12 +204,12 @@ struct FileRowView: View {
             // Show "no entry" icon for ignored files
             Image(systemName: "nosign")
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(ModernDesign.textTertiary)
+                .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
         } else if selectedFiles.contains(node.path) && !node.isDirectory {
             // Show green checkmark for selected files
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(ModernDesign.accentSuccess)
+                .foregroundColor(ColorScheme.Dynamic.accentSuccess)
         }
     }
     
@@ -225,7 +217,7 @@ struct FileRowView: View {
     private var backgroundView: some View {
         if isHovered {
             RoundedRectangle(cornerRadius: ModernDesign.radiusSmall)
-                .fill(ModernDesign.backgroundTertiary.opacity(0.6))
+                .fill(ColorScheme.Dynamic.backgroundTertiary(colorScheme).opacity(0.6))
         } else {
             Color.clear
         }

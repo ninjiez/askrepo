@@ -3,6 +3,7 @@ import SwiftUI
 
 struct FileExplorerView: View {
     @ObservedObject var viewModel: ContentViewViewModel
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 0) {
@@ -11,11 +12,11 @@ struct FileExplorerView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "folder.badge.gearshape")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0))
+                        .foregroundColor(ColorScheme.Dynamic.accentPrimary(colorScheme))
                     
                     Text("File Explorer")
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(Color(red: 0.11, green: 0.11, blue: 0.12))
+                        .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                 }
                 
                 Spacer()
@@ -36,7 +37,7 @@ struct FileExplorerView: View {
                         .padding(.vertical, 6)
                         .background(
                             Capsule()
-                                .fill(Color(red: 0.0, green: 0.48, blue: 1.0))
+                                .fill(ColorScheme.Dynamic.accentPrimary(colorScheme))
                         )
                     }
                     .buttonStyle(.plain)
@@ -57,7 +58,7 @@ struct FileExplorerView: View {
                         .padding(.vertical, 6)
                         .background(
                             Capsule()
-                                .fill(Color(red: 0.20, green: 0.78, blue: 0.35))
+                                .fill(ColorScheme.Dynamic.accentSuccess)
                         )
                     }
                     .buttonStyle(.plain)
@@ -77,7 +78,7 @@ struct FileExplorerView: View {
                             .padding(.vertical, 6)
                             .background(
                                 Capsule()
-                                    .fill(Color(red: 0.96, green: 0.26, blue: 0.21))
+                                    .fill(ColorScheme.Dynamic.accentDanger)
                             )
                         }
                         .buttonStyle(.plain)
@@ -88,7 +89,7 @@ struct FileExplorerView: View {
             .padding(.vertical, 18)
             
             Divider()
-                .background(Color(red: 0.90, green: 0.90, blue: 0.92))
+                .background(ColorScheme.Dynamic.borderLight(colorScheme))
             
             // File tree content
             Group {
@@ -102,12 +103,12 @@ struct FileExplorerView: View {
         .frame(minWidth: 350, idealWidth: 420)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(red: 0.99, green: 0.99, blue: 1.0))
-                .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+                .fill(ColorScheme.Dynamic.surfaceCard(colorScheme))
+                .shadow(color: ColorScheme.Dynamic.shadowCard(colorScheme), radius: 8, x: 0, y: 2)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color(red: 0.90, green: 0.90, blue: 0.92), lineWidth: 1)
+                .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
         )
     }
 
@@ -121,8 +122,8 @@ struct FileExplorerView: View {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color(red: 0.0, green: 0.48, blue: 1.0).opacity(0.15),
-                                    Color(red: 0.34, green: 0.34, blue: 0.84).opacity(0.15)
+                                    ColorScheme.Dynamic.accentPrimary(colorScheme).opacity(0.15),
+                                    ColorScheme.Dynamic.accentSecondary(colorScheme).opacity(0.15)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -132,17 +133,17 @@ struct FileExplorerView: View {
                     
                     Image(systemName: "folder.badge.plus")
                         .font(.system(size: 32, weight: .light))
-                        .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0))
+                        .foregroundColor(ColorScheme.Dynamic.accentPrimary(colorScheme))
                 }
                 
                 VStack(spacing: 6) {
                     Text("No Folders Added")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(Color(red: 0.11, green: 0.11, blue: 0.12))
+                        .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                     
                     Text("Add project folders to get started with AI assistance")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(Color(red: 0.47, green: 0.47, blue: 0.49))
+                        .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                 }
@@ -164,7 +165,7 @@ struct FileExplorerView: View {
                 .background(
                     Capsule()
                         .fill(Color(red: 0.0, green: 0.48, blue: 1.0))
-                        .shadow(color: Color(red: 0.0, green: 0.48, blue: 1.0).opacity(0.3), radius: 4, x: 0, y: 2)
+                        .shadow(color: ColorScheme.Dynamic.accentPrimary(colorScheme).opacity(0.3), radius: 4, x: 0, y: 2)
                 )
             }
             .buttonStyle(.plain)

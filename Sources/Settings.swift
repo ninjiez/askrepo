@@ -216,6 +216,7 @@ enum SettingsPage: String, CaseIterable {
 struct SettingsView: View {
     @ObservedObject var settings: Settings
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var selectedPage: SettingsPage = .prompts
     @State private var newIgnorePattern: String = ""
     
@@ -238,29 +239,12 @@ struct SettingsView: View {
         static let radiusSmall: CGFloat = 8
         static let radiusMedium: CGFloat = 12
         static let radiusLarge: CGFloat = 16
-        
-        static let backgroundPrimary = Color(red: 0.98, green: 0.98, blue: 0.99)
-        static let backgroundSecondary = Color.white
-        static let backgroundTertiary = Color(red: 0.96, green: 0.97, blue: 0.98)
-        static let surfaceCard = Color(red: 0.99, green: 0.99, blue: 1.0)
-        
-        static let accentPrimary = Color(red: 0.0, green: 0.48, blue: 1.0)
-        static let accentSecondary = Color(red: 0.34, green: 0.34, blue: 0.84)
-        static let accentDanger = Color(red: 0.96, green: 0.26, blue: 0.21)
-        static let accentSuccess = Color(red: 0.20, green: 0.78, blue: 0.35)
-        
-        static let textPrimary = Color(red: 0.11, green: 0.11, blue: 0.12)
-        static let textSecondary = Color(red: 0.47, green: 0.47, blue: 0.49)
-        static let textTertiary = Color(red: 0.68, green: 0.68, blue: 0.70)
-        
-        static let borderLight = Color(red: 0.90, green: 0.90, blue: 0.92)
-        static let shadowCard = Color.black.opacity(0.05)
     }
     
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [ModernDesign.backgroundPrimary, ModernDesign.backgroundSecondary],
+                colors: [ColorScheme.Dynamic.backgroundPrimary(colorScheme), ColorScheme.Dynamic.backgroundSecondary(colorScheme)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -290,11 +274,11 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: ModernDesign.spacing1) {
                 Text("Settings")
                     .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(ModernDesign.textPrimary)
+                    .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                 
                 Text("Configure application preferences")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(ModernDesign.textSecondary)
+                    .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
             }
             
             Spacer()
@@ -308,17 +292,17 @@ struct SettingsView: View {
             .padding(.vertical, ModernDesign.spacing1)
             .background(
                 Capsule()
-                    .fill(ModernDesign.accentPrimary)
+                    .fill(ColorScheme.Dynamic.accentPrimary(colorScheme))
             )
             .buttonStyle(.plain)
         }
         .padding(ModernDesign.spacing4)
         .background(
-            ModernDesign.backgroundSecondary
+            ColorScheme.Dynamic.backgroundSecondary(colorScheme)
                 .overlay(
                     Rectangle()
                         .frame(height: 1)
-                        .foregroundColor(ModernDesign.borderLight),
+                        .foregroundColor(ColorScheme.Dynamic.borderLight(colorScheme)),
                     alignment: .bottom
                 )
         )
@@ -335,11 +319,11 @@ struct SettingsView: View {
         .padding(ModernDesign.spacing3)
         .frame(width: 200)
         .background(
-            ModernDesign.backgroundTertiary
+            ColorScheme.Dynamic.backgroundTertiary(colorScheme)
                 .overlay(
                     Rectangle()
                         .frame(width: 1)
-                        .foregroundColor(ModernDesign.borderLight),
+                        .foregroundColor(ColorScheme.Dynamic.borderLight(colorScheme)),
                     alignment: .trailing
                 )
         )
@@ -352,12 +336,12 @@ struct SettingsView: View {
             HStack(spacing: ModernDesign.spacing2) {
                 Image(systemName: page.icon)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(selectedPage == page ? ModernDesign.accentPrimary : ModernDesign.textSecondary)
+                    .foregroundColor(selectedPage == page ? ColorScheme.Dynamic.accentPrimary(colorScheme) : ColorScheme.Dynamic.textSecondary(colorScheme))
                     .frame(width: 16)
                 
                 Text(page.rawValue)
                     .font(.system(size: 14, weight: selectedPage == page ? .semibold : .medium))
-                    .foregroundColor(selectedPage == page ? ModernDesign.textPrimary : ModernDesign.textSecondary)
+                    .foregroundColor(selectedPage == page ? ColorScheme.Dynamic.textPrimary(colorScheme) : ColorScheme.Dynamic.textSecondary(colorScheme))
                 
                 Spacer()
             }
@@ -365,7 +349,7 @@ struct SettingsView: View {
             .padding(.vertical, ModernDesign.spacing1)
             .background(
                 RoundedRectangle(cornerRadius: ModernDesign.radiusSmall)
-                    .fill(selectedPage == page ? ModernDesign.accentPrimary.opacity(0.1) : Color.clear)
+                    .fill(selectedPage == page ? ColorScheme.Dynamic.accentPrimary(colorScheme).opacity(0.1) : Color.clear)
             )
         }
         .buttonStyle(.plain)
@@ -384,7 +368,7 @@ struct SettingsView: View {
         }
         .padding(ModernDesign.spacing4)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(ModernDesign.backgroundSecondary)
+        .background(ColorScheme.Dynamic.backgroundSecondary(colorScheme))
     }
     
     private var systemIgnoresContent: some View {
@@ -405,7 +389,7 @@ struct SettingsView: View {
                         RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
                             .fill(
                                 LinearGradient(
-                                    colors: [ModernDesign.accentPrimary, ModernDesign.accentSecondary],
+                                    colors: [ColorScheme.Dynamic.accentPrimary(colorScheme), ColorScheme.Dynamic.accentSecondary(colorScheme)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
@@ -420,42 +404,42 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: ModernDesign.spacing1) {
                         Text("AskRepo")
                             .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .foregroundColor(ModernDesign.textPrimary)
+                            .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                         
                         Text("AI Code Assistant")
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(ModernDesign.textSecondary)
+                            .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
                         
                         Text("Version 0.8")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(ModernDesign.textTertiary)
+                            .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                     }
                 }
             }
             
             Divider()
-                .background(ModernDesign.borderLight)
+                .background(ColorScheme.Dynamic.borderLight(colorScheme))
             
             // Description Section
             VStack(alignment: .leading, spacing: ModernDesign.spacing2) {
                 Text("About")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(ModernDesign.textPrimary)
+                    .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                 
                 Text("AskRepo is a powerful AI code assistant that helps you prepare your codebase for AI analysis. Select files and directories, write prompts, and copy everything to your clipboard for use with AI tools like ChatGPT, Claude, or any other AI assistant.")
                     .font(.system(size: 14, weight: .regular))
-                    .foregroundColor(ModernDesign.textSecondary)
+                    .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
                     .lineSpacing(2)
             }
             
             Divider()
-                .background(ModernDesign.borderLight)
+                .background(ColorScheme.Dynamic.borderLight(colorScheme))
             
             // Features Section
             VStack(alignment: .leading, spacing: ModernDesign.spacing2) {
                 Text("Features")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(ModernDesign.textPrimary)
+                    .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                 
                 VStack(alignment: .leading, spacing: ModernDesign.spacing1) {
                     featureRow(icon: "folder.fill", text: "Smart file and directory selection")
@@ -467,27 +451,27 @@ struct SettingsView: View {
             }
             
             Divider()
-                .background(ModernDesign.borderLight)
+                .background(ColorScheme.Dynamic.borderLight(colorScheme))
             
             // Developer Section
             VStack(alignment: .leading, spacing: ModernDesign.spacing2) {
                 Text("Developer")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(ModernDesign.textPrimary)
+                    .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                 
                 HStack(spacing: ModernDesign.spacing2) {
                     Text("Built with ❤️ by")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(ModernDesign.textSecondary)
+                        .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
                     
                     if let url = URL(string: "https://x.com/flashloanz") {
                         Link("@flashloanz", destination: url)
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(ModernDesign.accentPrimary)
+                            .foregroundColor(ColorScheme.Dynamic.accentPrimary(colorScheme))
                     } else {
                         Text("@flashloanz")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(ModernDesign.accentPrimary)
+                            .foregroundColor(ColorScheme.Dynamic.accentPrimary(colorScheme))
                     }
                 }
             }
@@ -502,12 +486,12 @@ struct SettingsView: View {
         HStack(spacing: ModernDesign.spacing2) {
             Image(systemName: icon)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(ModernDesign.accentPrimary)
+                .foregroundColor(ColorScheme.Dynamic.accentPrimary(colorScheme))
                 .frame(width: 16)
             
             Text(text)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(ModernDesign.textSecondary)
+                .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
         }
     }
     
@@ -516,7 +500,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: ModernDesign.spacing1) {
                 Text("Files and directories that will always be ignored, regardless of .gitignore settings")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(ModernDesign.textSecondary)
+                    .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
             }
             
             addIgnoreSection
@@ -530,11 +514,11 @@ struct SettingsView: View {
             TextField("Add pattern (e.g., *.log, node_modules/, .DS_Store)", text: $newIgnorePattern)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
-                .foregroundColor(ModernDesign.textPrimary)
+                .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                 .padding(ModernDesign.spacing2)
                 .overlay(
                     RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
-                        .stroke(ModernDesign.borderLight, lineWidth: 1)
+                        .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
                 )
                 .onSubmit {
                     addNewIgnore()
@@ -557,8 +541,8 @@ struct SettingsView: View {
             .background(
                 Capsule()
                     .fill(newIgnorePattern.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty 
-                          ? ModernDesign.textTertiary 
-                          : ModernDesign.accentPrimary)
+                          ? ColorScheme.Dynamic.textTertiary(colorScheme) 
+                          : ColorScheme.Dynamic.accentPrimary(colorScheme))
             )
             .buttonStyle(.plain)
             .disabled(newIgnorePattern.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -569,7 +553,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: ModernDesign.spacing2) {
             Text("Current Blacklist (\(settings.systemIgnores.count))")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(ModernDesign.textPrimary)
+                .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
             
             ScrollView {
                 LazyVStack(spacing: ModernDesign.spacing1) {
@@ -581,10 +565,10 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: ModernDesign.radiusSmall)
-                    .fill(ModernDesign.backgroundSecondary)
+                    .fill(ColorScheme.Dynamic.backgroundSecondary(colorScheme))
                     .overlay(
                         RoundedRectangle(cornerRadius: ModernDesign.radiusSmall)
-                            .stroke(ModernDesign.borderLight, lineWidth: 1)
+                            .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
                     )
             )
         }
@@ -594,12 +578,12 @@ struct SettingsView: View {
         HStack {
             Image(systemName: pattern.hasSuffix("/") ? "folder.fill" : "doc.fill")
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(ModernDesign.textTertiary)
+                .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                 .frame(width: 16)
             
             Text(pattern)
                 .font(.system(size: 13, weight: .medium, design: .monospaced))
-                .foregroundColor(ModernDesign.textPrimary)
+                .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
             
             Spacer()
             
@@ -608,7 +592,7 @@ struct SettingsView: View {
             } label: {
                 Image(systemName: "minus.circle.fill")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(ModernDesign.accentDanger)
+                    .foregroundColor(ColorScheme.Dynamic.accentDanger)
             }
             .buttonStyle(.plain)
         }
@@ -632,7 +616,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: ModernDesign.spacing1) {
                 Text("Create and manage prompt templates for common AI tasks")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(ModernDesign.textSecondary)
+                    .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
             }
             
             addPromptSection
@@ -645,7 +629,7 @@ struct SettingsView: View {
         HStack {
             Text("Manage your prompt templates")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundColor(ModernDesign.textSecondary)
+                .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
             
             Spacer()
             
@@ -667,7 +651,7 @@ struct SettingsView: View {
             }
             .background(
                 Capsule()
-                    .fill(ModernDesign.accentPrimary)
+                    .fill(ColorScheme.Dynamic.accentPrimary(colorScheme))
             )
             .buttonStyle(.plain)
         }
@@ -677,7 +661,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: ModernDesign.spacing2) {
             Text("Templates (\(settings.promptTemplates.count))")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(ModernDesign.textPrimary)
+                .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
             
             ScrollView {
                 LazyVStack(spacing: ModernDesign.spacing2) {
@@ -690,10 +674,10 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: ModernDesign.radiusSmall)
-                    .fill(ModernDesign.backgroundSecondary)
+                    .fill(ColorScheme.Dynamic.backgroundSecondary(colorScheme))
                     .overlay(
                         RoundedRectangle(cornerRadius: ModernDesign.radiusSmall)
-                            .stroke(ModernDesign.borderLight, lineWidth: 1)
+                            .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
                     )
             )
         }
@@ -704,7 +688,7 @@ struct SettingsView: View {
             HStack {
                 Text(template.name)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(ModernDesign.textPrimary)
+                    .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                 
                 Spacer()
                 
@@ -717,7 +701,7 @@ struct SettingsView: View {
                     } label: {
                         Image(systemName: "pencil")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(ModernDesign.accentPrimary)
+                            .foregroundColor(ColorScheme.Dynamic.accentPrimary(colorScheme))
                     }
                     .buttonStyle(.plain)
                     
@@ -726,7 +710,7 @@ struct SettingsView: View {
                     } label: {
                         Image(systemName: "trash")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(ModernDesign.accentDanger)
+                            .foregroundColor(ColorScheme.Dynamic.accentDanger)
                     }
                     .buttonStyle(.plain)
                 }
@@ -734,17 +718,17 @@ struct SettingsView: View {
             
             Text(template.content)
                 .font(.system(size: 12, weight: .regular))
-                .foregroundColor(ModernDesign.textSecondary)
+                .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
                 .lineLimit(3)
                 .multilineTextAlignment(.leading)
         }
         .padding(ModernDesign.spacing2)
         .background(
             RoundedRectangle(cornerRadius: ModernDesign.radiusSmall)
-                .fill(ModernDesign.backgroundSecondary)
+                .fill(ColorScheme.Dynamic.backgroundSecondary(colorScheme))
                 .overlay(
                     RoundedRectangle(cornerRadius: ModernDesign.radiusSmall)
-                        .stroke(ModernDesign.borderLight, lineWidth: 1)
+                        .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
                 )
         )
     }
@@ -772,7 +756,7 @@ struct SettingsView: View {
                 HStack {
                     Text("Add Prompt Template")
                         .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(ModernDesign.textPrimary)
+                        .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                     
                     Spacer()
                     
@@ -781,7 +765,7 @@ struct SettingsView: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 22, weight: .medium))
-                            .foregroundColor(ModernDesign.textTertiary)
+                            .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                     }
                     .buttonStyle(.plain)
                 }
@@ -792,7 +776,7 @@ struct SettingsView: View {
                         .overlay(
                             Rectangle()
                                 .frame(height: 1)
-                                .foregroundColor(ModernDesign.borderLight),
+                                .foregroundColor(ColorScheme.Dynamic.borderLight(colorScheme)),
                             alignment: .bottom
                         )
                 )
@@ -803,42 +787,42 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: ModernDesign.spacing2) {
                             Text("Template Name")
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(ModernDesign.textPrimary)
+                                .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                             
                             TextField("Enter template name", text: $newPromptName)
                                 .textFieldStyle(.plain)
                                 .font(.system(size: 14))
-                                .foregroundColor(ModernDesign.textPrimary)
+                                .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                                 .padding(ModernDesign.spacing2)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
-                                        .stroke(ModernDesign.borderLight, lineWidth: 1)
+                                        .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
                                 )
                         }
                         
                         VStack(alignment: .leading, spacing: ModernDesign.spacing2) {
                             Text("Template Content")
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(ModernDesign.textPrimary)
+                                .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                             
                             ZStack(alignment: .topLeading) {
                                 RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
                                     .fill(Color.white)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
-                                            .stroke(ModernDesign.borderLight, lineWidth: 1)
+                                            .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
                                     )
                                 
                                 TextEditor(text: $newPromptContent)
                                     .font(.system(size: 14, weight: .regular))
-                                    .foregroundColor(ModernDesign.textPrimary)
+                                    .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                                     .scrollContentBackground(.hidden)
                                     .padding(ModernDesign.spacing2)
                                 
                                 if newPromptContent.isEmpty {
                                     Text("Enter your prompt template content...")
                                         .font(.system(size: 14, weight: .regular))
-                                        .foregroundColor(ModernDesign.textTertiary)
+                                        .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                                         .padding(.top, ModernDesign.spacing2 + 8)
                                         .padding(.leading, ModernDesign.spacing2 + 4)
                                         .allowsHitTesting(false)
@@ -860,12 +844,12 @@ struct SettingsView: View {
                         showingAddPromptDialog = false
                     }
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(ModernDesign.textSecondary)
+                    .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
                     .padding(.horizontal, ModernDesign.spacing4)
                     .padding(.vertical, ModernDesign.spacing2)
                     .background(
                         Capsule()
-                            .fill(ModernDesign.backgroundTertiary)
+                            .fill(ColorScheme.Dynamic.backgroundTertiary(colorScheme))
                     )
                     .buttonStyle(.plain)
                     
@@ -880,8 +864,8 @@ struct SettingsView: View {
                         Capsule()
                             .fill(
                                 newPromptName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || newPromptContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                ? ModernDesign.textTertiary
-                                : ModernDesign.accentPrimary
+                                ? ColorScheme.Dynamic.textTertiary(colorScheme)
+                                : ColorScheme.Dynamic.accentPrimary(colorScheme)
                             )
                     )
                     .buttonStyle(.plain)
@@ -894,7 +878,7 @@ struct SettingsView: View {
                         .overlay(
                             Rectangle()
                                 .frame(height: 1)
-                                .foregroundColor(ModernDesign.borderLight),
+                                .foregroundColor(ColorScheme.Dynamic.borderLight(colorScheme)),
                             alignment: .top
                         )
                 )
@@ -924,7 +908,7 @@ struct SettingsView: View {
                 HStack {
                     Text("Edit Prompt Template")
                         .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(ModernDesign.textPrimary)
+                        .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                     
                     Spacer()
                     
@@ -933,7 +917,7 @@ struct SettingsView: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 22, weight: .medium))
-                            .foregroundColor(ModernDesign.textTertiary)
+                            .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                     }
                     .buttonStyle(.plain)
                 }
@@ -944,7 +928,7 @@ struct SettingsView: View {
                         .overlay(
                             Rectangle()
                                 .frame(height: 1)
-                                .foregroundColor(ModernDesign.borderLight),
+                                .foregroundColor(ColorScheme.Dynamic.borderLight(colorScheme)),
                             alignment: .bottom
                         )
                 )
@@ -955,35 +939,35 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: ModernDesign.spacing2) {
                             Text("Template Name")
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(ModernDesign.textPrimary)
+                                .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                             
                             TextField("Enter template name", text: $editingName)
                                 .textFieldStyle(.plain)
                                 .font(.system(size: 14))
-                                .foregroundColor(ModernDesign.textPrimary)
+                                .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                                 .padding(ModernDesign.spacing2)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
-                                        .stroke(ModernDesign.borderLight, lineWidth: 1)
+                                        .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
                                 )
                         }
                         
                         VStack(alignment: .leading, spacing: ModernDesign.spacing2) {
                             Text("Template Content")
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(ModernDesign.textPrimary)
+                                .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                             
                             ZStack(alignment: .topLeading) {
                                 RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
                                     .fill(Color.white)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
-                                            .stroke(ModernDesign.borderLight, lineWidth: 1)
+                                            .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
                                     )
                                 
                                 TextEditor(text: $editingContent)
                                     .font(.system(size: 14, weight: .regular))
-                                    .foregroundColor(ModernDesign.textPrimary)
+                                    .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                                     .scrollContentBackground(.hidden)
                                     .padding(ModernDesign.spacing2)
                             }
@@ -1003,12 +987,12 @@ struct SettingsView: View {
                         showingEditPromptDialog = false
                     }
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(ModernDesign.textSecondary)
+                    .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
                     .padding(.horizontal, ModernDesign.spacing4)
                     .padding(.vertical, ModernDesign.spacing2)
                     .background(
                         Capsule()
-                            .fill(ModernDesign.backgroundTertiary)
+                            .fill(ColorScheme.Dynamic.backgroundTertiary(colorScheme))
                     )
                     .buttonStyle(.plain)
                     
@@ -1026,8 +1010,8 @@ struct SettingsView: View {
                         Capsule()
                             .fill(
                                 editingName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || editingContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                ? ModernDesign.textTertiary
-                                : ModernDesign.accentPrimary
+                                ? ColorScheme.Dynamic.textTertiary(colorScheme)
+                                : ColorScheme.Dynamic.accentPrimary(colorScheme)
                             )
                     )
                     .buttonStyle(.plain)
@@ -1040,7 +1024,7 @@ struct SettingsView: View {
                         .overlay(
                             Rectangle()
                                 .frame(height: 1)
-                                .foregroundColor(ModernDesign.borderLight),
+                                .foregroundColor(ColorScheme.Dynamic.borderLight(colorScheme)),
                             alignment: .top
                         )
                 )
