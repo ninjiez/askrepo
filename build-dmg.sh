@@ -54,9 +54,9 @@ cat > "$BUILD_DIR/$APP_NAME/Contents/Info.plist" << EOF
     <key>CFBundleDisplayName</key>
     <string>AskRepo</string>
     <key>CFBundleVersion</key>
-    <string>0.8</string>
+    <string>0.9</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.8</string>
+    <string>0.9</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -166,7 +166,7 @@ for y in range(height):
     color = f'#{alpha:02x}{alpha:02x}{alpha:02x}'
     
 # Draw version info in corner
-version_text = "v0.8"
+version_text = "v0.9"
 version_bbox = draw.textbbox((0, 0), version_text, font=instruction_font)
 draw.text((width - version_bbox[2] - 20, height - version_bbox[3] - 10), version_text, fill='#999999', font=instruction_font)
 
