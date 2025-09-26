@@ -744,7 +744,7 @@ struct SettingsView: View {
     private var addPromptDialog: some View {
         ZStack {
             // Background overlay
-            Color.black.opacity(0.3)
+            Color.black.opacity(colorScheme == .dark ? 0.55 : 0.3)
                 .ignoresSafeArea()
                 .onTapGesture {
                     showingAddPromptDialog = false
@@ -772,7 +772,7 @@ struct SettingsView: View {
                 .padding(.horizontal, ModernDesign.spacing5)
                 .padding(.vertical, ModernDesign.spacing4)
                 .background(
-                    Color.white
+                    ColorScheme.Dynamic.surfaceElevated(colorScheme)
                         .overlay(
                             Rectangle()
                                 .frame(height: 1)
@@ -794,6 +794,10 @@ struct SettingsView: View {
                                 .font(.system(size: 14))
                                 .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                                 .padding(ModernDesign.spacing2)
+                                .background(
+                                    RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
+                                        .fill(ColorScheme.Dynamic.backgroundSecondary(colorScheme))
+                                )
                                 .overlay(
                                     RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
                                         .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
@@ -807,7 +811,7 @@ struct SettingsView: View {
                             
                             ZStack(alignment: .topLeading) {
                                 RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
-                                    .fill(Color.white)
+                                    .fill(ColorScheme.Dynamic.backgroundSecondary(colorScheme))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
                                             .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
@@ -834,7 +838,7 @@ struct SettingsView: View {
                     .padding(.horizontal, ModernDesign.spacing5)
                     .padding(.vertical, ModernDesign.spacing4)
                 }
-                .background(Color.white)
+                .background(ColorScheme.Dynamic.surfaceElevated(colorScheme))
                 
                 // Footer
                 HStack(spacing: ModernDesign.spacing3) {
@@ -874,7 +878,7 @@ struct SettingsView: View {
                 .padding(.horizontal, ModernDesign.spacing5)
                 .padding(.vertical, ModernDesign.spacing4)
                 .background(
-                    Color.white
+                    ColorScheme.Dynamic.surfaceElevated(colorScheme)
                         .overlay(
                             Rectangle()
                                 .frame(height: 1)
@@ -886,8 +890,8 @@ struct SettingsView: View {
             .frame(width: 600, height: 500)
             .background(
                 RoundedRectangle(cornerRadius: ModernDesign.radiusLarge)
-                    .fill(Color.white)
-                    .shadow(color: Color.black.opacity(0.15), radius: 30, x: 0, y: 10)
+                    .fill(ColorScheme.Dynamic.surfaceElevated(colorScheme))
+                    .shadow(color: ColorScheme.Dynamic.shadowDeep(colorScheme), radius: 30, x: 0, y: 10)
             )
             .clipShape(RoundedRectangle(cornerRadius: ModernDesign.radiusLarge))
         }
@@ -896,7 +900,7 @@ struct SettingsView: View {
     private var editPromptDialog: some View {
         ZStack {
             // Background overlay
-            Color.black.opacity(0.3)
+            Color.black.opacity(colorScheme == .dark ? 0.55 : 0.3)
                 .ignoresSafeArea()
                 .onTapGesture {
                     showingEditPromptDialog = false
@@ -924,7 +928,7 @@ struct SettingsView: View {
                 .padding(.horizontal, ModernDesign.spacing5)
                 .padding(.vertical, ModernDesign.spacing4)
                 .background(
-                    Color.white
+                    ColorScheme.Dynamic.surfaceElevated(colorScheme)
                         .overlay(
                             Rectangle()
                                 .frame(height: 1)
@@ -946,6 +950,10 @@ struct SettingsView: View {
                                 .font(.system(size: 14))
                                 .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                                 .padding(ModernDesign.spacing2)
+                                .background(
+                                    RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
+                                        .fill(ColorScheme.Dynamic.backgroundSecondary(colorScheme))
+                                )
                                 .overlay(
                                     RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
                                         .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
@@ -959,7 +967,7 @@ struct SettingsView: View {
                             
                             ZStack(alignment: .topLeading) {
                                 RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
-                                    .fill(Color.white)
+                                    .fill(ColorScheme.Dynamic.backgroundSecondary(colorScheme))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
                                             .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
@@ -977,7 +985,7 @@ struct SettingsView: View {
                     .padding(.horizontal, ModernDesign.spacing5)
                     .padding(.vertical, ModernDesign.spacing4)
                 }
-                .background(Color.white)
+                .background(ColorScheme.Dynamic.surfaceElevated(colorScheme))
                 
                 // Footer
                 HStack(spacing: ModernDesign.spacing3) {
@@ -1020,7 +1028,7 @@ struct SettingsView: View {
                 .padding(.horizontal, ModernDesign.spacing5)
                 .padding(.vertical, ModernDesign.spacing4)
                 .background(
-                    Color.white
+                    ColorScheme.Dynamic.surfaceElevated(colorScheme)
                         .overlay(
                             Rectangle()
                                 .frame(height: 1)
@@ -1032,8 +1040,8 @@ struct SettingsView: View {
             .frame(width: 600, height: 500)
             .background(
                 RoundedRectangle(cornerRadius: ModernDesign.radiusLarge)
-                    .fill(Color.white)
-                    .shadow(color: Color.black.opacity(0.15), radius: 30, x: 0, y: 10)
+                    .fill(ColorScheme.Dynamic.surfaceElevated(colorScheme))
+                    .shadow(color: ColorScheme.Dynamic.shadowDeep(colorScheme), radius: 30, x: 0, y: 10)
             )
             .clipShape(RoundedRectangle(cornerRadius: ModernDesign.radiusLarge))
         }
