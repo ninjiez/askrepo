@@ -3,6 +3,7 @@ import Foundation
 
 struct ContentView: View {
     @StateObject private var viewModel = ContentViewViewModel()
+    @Environment(\.colorScheme) private var colorScheme
 
 
     private let appVersion = "0.8"
@@ -48,33 +49,6 @@ struct ContentView: View {
         static let radiusMedium: CGFloat = 12
         static let radiusLarge: CGFloat = 16
         static let radiusXLarge: CGFloat = 20
-        
-        // Sophisticated Colors
-        static let backgroundPrimary = Color(red: 0.98, green: 0.98, blue: 0.99)
-        static let backgroundSecondary = Color.white
-        static let backgroundTertiary = Color(red: 0.96, green: 0.97, blue: 0.98)
-        static let backgroundGlass = Color.white.opacity(0.8)
-        
-        static let surfaceElevated = Color.white
-        static let surfaceCard = Color(red: 0.99, green: 0.99, blue: 1.0)
-        
-        static let accentPrimary = Color(red: 0.0, green: 0.48, blue: 1.0)
-        static let accentSecondary = Color(red: 0.34, green: 0.34, blue: 0.84)
-        static let accentSuccess = Color(red: 0.20, green: 0.78, blue: 0.35)
-        static let accentWarning = Color(red: 1.0, green: 0.58, blue: 0.0)
-        static let accentDanger = Color(red: 0.96, green: 0.26, blue: 0.21)
-        
-        static let textPrimary = Color(red: 0.11, green: 0.11, blue: 0.12)
-        static let textSecondary = Color(red: 0.47, green: 0.47, blue: 0.49)
-        static let textTertiary = Color(red: 0.68, green: 0.68, blue: 0.70)
-        
-        static let borderLight = Color(red: 0.90, green: 0.90, blue: 0.92)
-        static let borderMedium = Color(red: 0.82, green: 0.82, blue: 0.84)
-        
-        // Modern Shadows
-        static let shadowCard = Color.black.opacity(0.05)
-        static let shadowElevated = Color.black.opacity(0.10)
-        static let shadowDeep = Color.black.opacity(0.15)
     }
     
     var body: some View {
@@ -82,8 +56,8 @@ struct ContentView: View {
             // Background gradient
             LinearGradient(
                 colors: [
-                    ModernDesign.backgroundPrimary,
-                    ModernDesign.backgroundTertiary
+                    ColorScheme.Dynamic.backgroundPrimary(colorScheme),
+                    ColorScheme.Dynamic.backgroundTertiary(colorScheme)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -119,7 +93,7 @@ struct ContentView: View {
         }
         .onChange(of: viewModel.settings.systemIgnores) { _ in
             // Reload directories when system ignores change
-            loadDirectories()
+            loadDirectories(autoSelectNewFiles: false)
             // Remove any selected files that are now ignored
             let ignoredFiles = viewModel.selectedFiles.filter { filePath in
                 viewModel.settings.shouldIgnore(path: filePath, isDirectory: false)
@@ -140,6 +114,7 @@ struct ContentView: View {
         .onDisappear {
             saveDirectoriesToUserDefaults()
             viewModel.tokenCountingTask?.cancel()
+            viewModel.fileTokenTask?.cancel()
         }
         .overlay {
             if viewModel.showingClearAllConfirmation {
@@ -181,25 +156,29 @@ struct ContentView: View {
             }
         }
         .overlay {
-            if viewModel.showingGitIgnoreConfirmation {
+            if viewModel.showingIgnoredFileConfirmation {
                 modernConfirmationOverlay(
-                    title: "Include Git-Ignored File",
+                    title: "Include Ignored File",
                     message: {
-                        if let filePath = viewModel.gitIgnoreFileToSelect {
-                            let fileName = URL(fileURLWithPath: filePath).lastPathComponent
-                            return "'\(fileName)' is ignored by .gitignore. Are you sure you want to include it in your AI prompt?"
-                        } else {
-                            return "This file is ignored by .gitignore. Are you sure you want to include it?"
+                        guard let ignored = viewModel.ignoredFileToSelect else {
+                            return "This file is currently ignored. Include it in your AI prompt?"
+                        }
+                        let fileName = URL(fileURLWithPath: ignored.path).lastPathComponent
+                        switch ignored.reason {
+                        case .gitignore:
+                            return "'\(fileName)' is ignored by .gitignore. Include it in your AI prompt?"
+                        case .system:
+                            return "'\(fileName)' matches your blacklist settings. Include it in your AI prompt?"
                         }
                     }(),
                     confirmText: "Include File",
                     onConfirm: {
-                        confirmIncludeGitIgnoredFile()
-                        viewModel.showingGitIgnoreConfirmation = false
+                        confirmIncludeIgnoredFile()
+                        viewModel.showingIgnoredFileConfirmation = false
                     },
                     onCancel: {
-                        viewModel.gitIgnoreFileToSelect = nil
-                        viewModel.showingGitIgnoreConfirmation = false
+                        viewModel.ignoredFileToSelect = nil
+                        viewModel.showingIgnoredFileConfirmation = false
                     }
                 )
             }
@@ -217,7 +196,7 @@ struct ContentView: View {
                     Image(nsImage: appIconImage)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 48, height: 48)
+                        .frame(width: 36, height: 36)
                         .clipShape(RoundedRectangle(cornerRadius: ModernDesign.radiusSmall))
                 } else {
                     // Fallback to the original gradient design
@@ -225,53 +204,53 @@ struct ContentView: View {
                     RoundedRectangle(cornerRadius: ModernDesign.radiusSmall)
                         .fill(
                             LinearGradient(
-                                colors: [ModernDesign.accentPrimary, ModernDesign.accentSecondary],
+                                colors: [ColorScheme.Dynamic.accentPrimary(colorScheme), ColorScheme.Dynamic.accentSecondary(colorScheme)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
-                            .frame(width: 48, height: 48)
+                            .frame(width: 36, height: 36)
                     
                     Image(systemName: "doc.text.magnifyingglass")
-                            .font(.system(size: 24, weight: .semibold))
+                            .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(.white)
                     }
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("AskRepo")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .foregroundColor(ModernDesign.textPrimary)
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                     
                     Text("AI Code Assistant")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(ModernDesign.textSecondary)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
                 }
             }
             
             Spacer()
             
             // Quick stats
-            HStack(spacing: ModernDesign.spacing3) {
+            HStack(spacing: ModernDesign.spacing2) {
                 modernStatCard(
                     icon: "folder.fill",
                     value: "\(viewModel.selectedDirectories.count)",
                     label: "Folders",
-                    color: ModernDesign.accentPrimary
+                    color: ColorScheme.Dynamic.accentPrimary(colorScheme)
                 )
                 
                 modernStatCard(
                     icon: "doc.text.fill",
                     value: "\(viewModel.selectedFiles.count)",
                     label: "Files",
-                    color: ModernDesign.accentSuccess
+                    color: ColorScheme.Dynamic.accentSuccess
                 )
                 
                 modernStatCard(
                     icon: "textformat.abc",
                     value: "\(viewModel.formatTokenCount(viewModel.totalTokenCount))",
                     label: "Tokens",
-                    color: ModernDesign.accentWarning
+                    color: ColorScheme.Dynamic.accentWarning
                 )
                 
                 // Settings button
@@ -279,46 +258,51 @@ struct ContentView: View {
                     viewModel.showingSettings = true
                 } label: {
                     Image(systemName: "gearshape.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(ModernDesign.accentPrimary)
-                        .frame(width: 32, height: 32)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(ColorScheme.Dynamic.accentPrimary(colorScheme))
+                        .frame(width: 28, height: 28)
                         .background(
                             Circle()
-                                .fill(ModernDesign.accentPrimary.opacity(0.12))
+                                .fill(ColorScheme.Dynamic.accentPrimary(colorScheme).opacity(0.12))
                         )
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, ModernDesign.spacing5)
-        .padding(.vertical, ModernDesign.spacing4)
+        .padding(.vertical, ModernDesign.spacing2)
         .background(
-            ModernDesign.backgroundGlass
-                .background(.ultraThinMaterial)
+            ColorScheme.Dynamic.backgroundPrimary(colorScheme)
+        )
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(ColorScheme.Dynamic.borderLight(colorScheme)),
+            alignment: .bottom
         )
     }
     
     private func modernStatCard(icon: String, value: String, label: String, color: Color) -> some View {
-        HStack(spacing: ModernDesign.spacing1) {
+        HStack(spacing: 4) {
             Image(systemName: icon)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(color)
-                .frame(width: 20)
+                .frame(width: 16)
             
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(value)
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundColor(ModernDesign.textPrimary)
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                     .monospacedDigit()
                 
                 Text(label)
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundColor(ModernDesign.textTertiary)
+                    .font(.system(size: 8, weight: .medium))
+                    .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                     .textCase(.uppercase)
             }
         }
-        .padding(.horizontal, ModernDesign.spacing2)
-        .padding(.vertical, ModernDesign.spacing1)
+        .padding(.horizontal, ModernDesign.spacing1)
+        .padding(.vertical, 4)
         .background(
             RoundedRectangle(cornerRadius: ModernDesign.radiusSmall)
                 .fill(color.opacity(0.08))
@@ -342,36 +326,36 @@ struct ContentView: View {
         HStack(spacing: ModernDesign.spacing4) {
             Text("AskRepo v\(appVersion)")
                 .font(.system(size: 10, weight: .medium))
-                .foregroundColor(ModernDesign.textTertiary)
+                .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
             
             Spacer()
             
             HStack(spacing: 4) {
                 Text("Built with ❤️ by")
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(ModernDesign.textTertiary)
+                    .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                 
                 if let url = URL(string: "https://x.com/flashloanz") {
                     Link("@flashloanz", destination: url)
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(ModernDesign.accentPrimary)
+                        .foregroundColor(ColorScheme.Dynamic.accentPrimary(colorScheme))
                 } else {
                     Text("@flashloanz")
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(ModernDesign.accentPrimary)
+                        .foregroundColor(ColorScheme.Dynamic.accentPrimary(colorScheme))
                 }
             }
         }
         .padding(.horizontal, ModernDesign.spacing5)
         .padding(.vertical, ModernDesign.spacing2)
         .background(
-            ModernDesign.backgroundGlass
+            ColorScheme.Dynamic.backgroundGlass(colorScheme)
                 .background(.ultraThinMaterial)
         )
         .overlay(
             Rectangle()
                 .frame(height: 1)
-                .foregroundColor(ModernDesign.borderLight),
+                .foregroundColor(ColorScheme.Dynamic.borderLight(colorScheme)),
             alignment: .top
         )
     }
@@ -397,12 +381,12 @@ struct ContentView: View {
         viewModel.refreshDirectories()
     }
     
-    private func confirmIncludeGitIgnoredFile() {
-        viewModel.confirmIncludeGitIgnoredFile()
+    private func confirmIncludeIgnoredFile() {
+        viewModel.confirmIncludeIgnoredFile()
     }
     
-    private func loadDirectories() {
-        viewModel.loadDirectories()
+    private func loadDirectories(autoSelectNewFiles: Bool = false) {
+        viewModel.loadDirectories(autoSelectNewFiles: autoSelectNewFiles)
     }
     
     private func getRelativePath(for absolutePath: String) -> String {
@@ -481,24 +465,24 @@ struct ContentView: View {
                     // Icon
                     ZStack {
                         Circle()
-                            .fill(ModernDesign.accentDanger.opacity(0.15))
+                            .fill(ColorScheme.Dynamic.accentDanger.opacity(0.15))
                             .frame(width: 48, height: 48)
                         
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(ModernDesign.accentDanger)
+                            .foregroundColor(ColorScheme.Dynamic.accentDanger)
                     }
                     
                     // Title
                     Text(title)
                         .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(ModernDesign.textPrimary)
+                        .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                         .multilineTextAlignment(.center)
                     
                     // Message
                     Text(message)
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(ModernDesign.textSecondary)
+                        .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
                         .multilineTextAlignment(.center)
                         .lineLimit(nil)
                         .fixedSize(horizontal: false, vertical: true)
@@ -507,7 +491,7 @@ struct ContentView: View {
                 
                 // Divider
                 Divider()
-                    .background(ModernDesign.borderLight)
+                    .background(ColorScheme.Dynamic.borderLight(colorScheme))
                 
                 // Action buttons
                 HStack(spacing: 0) {
@@ -517,15 +501,15 @@ struct ContentView: View {
                     } label: {
                         Text("Cancel")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(ModernDesign.textSecondary)
+                            .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
                             .frame(maxWidth: .infinity, minHeight: 40)
                     }
                     .buttonStyle(.plain)
-                    .background(ModernDesign.backgroundSecondary)
+                    .background(ColorScheme.Dynamic.backgroundSecondary(colorScheme))
                     
                     // Vertical divider
                     Rectangle()
-                        .fill(ModernDesign.borderLight)
+                        .fill(ColorScheme.Dynamic.borderLight(colorScheme))
                         .frame(width: 1)
                     
                     // Confirm button
@@ -534,24 +518,24 @@ struct ContentView: View {
                     } label: {
                         Text(confirmText)
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(ModernDesign.accentDanger)
+                            .foregroundColor(ColorScheme.Dynamic.accentDanger)
                             .frame(maxWidth: .infinity, minHeight: 40)
                     }
                     .buttonStyle(.plain)
-                    .background(ModernDesign.backgroundSecondary)
+                    .background(ColorScheme.Dynamic.backgroundSecondary(colorScheme))
                 }
             }
             .frame(width: 320)
             .fixedSize(horizontal: true, vertical: true)
             .background(
                 RoundedRectangle(cornerRadius: ModernDesign.radiusLarge)
-                    .fill(ModernDesign.surfaceCard)
-                    .shadow(color: ModernDesign.shadowDeep, radius: 20, x: 0, y: 8)
+                    .fill(ColorScheme.Dynamic.surfaceCard(colorScheme))
+                    .shadow(color: ColorScheme.Dynamic.shadowDeep(colorScheme), radius: 20, x: 0, y: 8)
             )
             .clipShape(RoundedRectangle(cornerRadius: ModernDesign.radiusLarge))
             .overlay(
                 RoundedRectangle(cornerRadius: ModernDesign.radiusLarge)
-                    .stroke(ModernDesign.borderLight, lineWidth: 1)
+                    .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
             )
         }
     }

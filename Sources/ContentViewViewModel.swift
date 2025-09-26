@@ -13,8 +13,8 @@ class ContentViewViewModel: ObservableObject {
     @Published var directoryToDelete: Int?
     @Published var copyFeedbackShown = false
     @Published var saveFeedbackShown = false
-    @Published var showingGitIgnoreConfirmation = false
-    @Published var gitIgnoreFileToSelect: String?
+    @Published var showingIgnoredFileConfirmation = false
+    @Published var ignoredFileToSelect: (path: String, reason: FileNode.IgnoreReason)?
     @Published var showingSettings = false
 
     // Search and sorting for selected files
@@ -29,6 +29,7 @@ class ContentViewViewModel: ObservableObject {
     @Published var fileTokenCache: [String: Int] = [:]
     @Published var promptTokenCount: Int = 0
     @Published var tokenCountingTask: Task<Void, Never>?
+    var fileTokenTask: Task<Void, Never>?
     
     @Published var isLoading: Bool = false
 
@@ -45,7 +46,7 @@ class ContentViewViewModel: ObservableObject {
         }
         
         selectedDirectories.append(url)
-        loadDirectories()
+        loadDirectories(autoSelectNewFiles: true)
         
         // Save to UserDefaults
         saveDirectoriesToUserDefaults()
@@ -66,7 +67,7 @@ class ContentViewViewModel: ObservableObject {
         let directoryPath = removedDirectory.path
         selectedFiles = selectedFiles.filter { !$0.hasPrefix(directoryPath) }
         
-        loadDirectories()
+        loadDirectories(autoSelectNewFiles: false)
         
         // Save to UserDefaults
         saveDirectoriesToUserDefaults()
@@ -91,8 +92,8 @@ class ContentViewViewModel: ObservableObject {
         // Clear file token cache to force recalculation
         fileTokenCache.removeAll()
         
-        // Reload all directories
-        loadDirectories()
+        // Reload all directories without auto-selecting manually deselected files
+        loadDirectories(autoSelectNewFiles: false)
         
         // Update selected files - keep files that still exist, remove files that no longer exist
         var updatedSelectedFiles: Set<String> = []
@@ -131,31 +132,34 @@ class ContentViewViewModel: ObservableObject {
         updateTotalTokenCount()
     }
     
-    func confirmIncludeGitIgnoredFile() {
-        guard let filePath = gitIgnoreFileToSelect else { return }
+    func confirmIncludeIgnoredFile() {
+        guard let ignored = ignoredFileToSelect else { return }
         
         // Add the ignored file to selected files
-        selectedFiles.insert(filePath)
+        selectedFiles.insert(ignored.path)
         
         // Reset confirmation state
-        gitIgnoreFileToSelect = nil
+        ignoredFileToSelect = nil
     }
     
-    func loadDirectories() {
+    func loadDirectories(autoSelectNewFiles: Bool = true) {
         isLoading = true
         let group = DispatchGroup()
         var newFileNodes: [FileNode] = []
+        let previouslyLoadedDirectories = Set(fileNodes.map { $0.path })
+
+        let ignoreMatcher = settings.ignoreSnapshot()
 
         for url in selectedDirectories {
             group.enter()
-            FileSystemHelper.loadDirectoryAsync(url, settings: settings) { nodes in
+            FileSystemHelper.loadDirectoryAsync(url, ignoreMatcher: ignoreMatcher) { nodes in
                 let fileNode = FileNode(
                     name: url.lastPathComponent,
                     path: url.path,
                     isDirectory: true,
                     children: nodes,
                     isExpanded: true,
-                    isIgnored: false
+                    ignoreReason: nil
                 )
                 newFileNodes.append(fileNode)
                 group.leave()
@@ -166,12 +170,14 @@ class ContentViewViewModel: ObservableObject {
             self.fileNodes = newFileNodes
             self.isLoading = false
             
-            // Automatically select all non-ignored files in the newly added directory
-            for node in newFileNodes {
+            guard autoSelectNewFiles else { return }
+
+            // Automatically select files only for directories that are new to the tree
+            for node in newFileNodes where !previouslyLoadedDirectories.contains(node.path) {
                 let gitignoreParser = GitIgnoreParser.loadFromDirectory(URL(fileURLWithPath: node.path))
                 let allFilePaths = FileSystemHelper.getAllNonIgnoredFilePaths(
-                    from: node, 
-                    gitignoreParser: gitignoreParser, 
+                    from: node,
+                    gitignoreParser: gitignoreParser,
                     basePath: node.path
                 )
                 for filePath in allFilePaths {
@@ -239,18 +245,20 @@ class ContentViewViewModel: ObservableObject {
     }
     
     func calculateFileTokensOnly() {
-        // Only recalculate tokens for files that aren't cached
-        for filePath in selectedFiles {
-            if fileTokenCache[filePath] == nil {
-                if let content = FileSystemHelper.readFileContent(filePath) {
-                    fileTokenCache[filePath] = TokenCounter.countTokens(in: content)
-                }
-            }
-        }
-        
+        // Cancel any in-flight work before starting a new recount
+        fileTokenTask?.cancel()
+
         // Remove cached tokens for files that are no longer selected
         let selectedFilesSet = Set(selectedFiles)
         fileTokenCache = fileTokenCache.filter { selectedFilesSet.contains($0.key) }
+
+        // Launch an async task to populate accurate token counts
+        fileTokenTask = Task { [weak self] in
+            guard let self else { return }
+            await self.calculateFileTokensAsync()
+        }
+
+        updateTotalTokenCount()
     }
     
     /// Async version of token calculation for better performance
@@ -263,6 +271,7 @@ class ContentViewViewModel: ObservableObject {
         let batches = filesToProcess.chunked(into: batchSize)
         
         for batch in batches {
+            if Task.isCancelled { break }
             await withTaskGroup(of: (String, Int?).self) { group in
                 for filePath in batch {
                     group.addTask {
@@ -291,6 +300,8 @@ class ContentViewViewModel: ObservableObject {
         // Remove cached tokens for files that are no longer selected
         let selectedFilesSet = Set(selectedFiles)
         fileTokenCache = fileTokenCache.filter { selectedFilesSet.contains($0.key) }
+
+        updateTotalTokenCount()
     }
     
     func updateTotalTokenCount() {
@@ -299,83 +310,131 @@ class ContentViewViewModel: ObservableObject {
     }
     
     func calculateTokenCount() {
-        // Legacy function for initial load - calculate everything at once
-        promptTokenCount = TokenCounter.countTokens(in: promptText)
+        tokenCountingTask?.cancel()
+        tokenCountingTask = Task { [weak self] in
+            guard let self else { return }
+            let count = await TokenCounter.countTokensAsync(in: self.promptText)
+            await MainActor.run {
+                self.promptTokenCount = count
+                self.updateTotalTokenCount()
+            }
+        }
+
         calculateFileTokensOnly()
-        updateTotalTokenCount()
     }
     
     func copyToClipboard() {
-        var output = ""
-        
-        if !promptText.isEmpty {
-            output += "<prompt>\n\(promptText)\n</prompt>\n\n"
-        }
-        
-        if !selectedFiles.isEmpty {
-            output += "<codebase>\n"
-            
-            for filePath in selectedFiles.sorted() {
-                let relativePath = getRelativePath(for: filePath)
-                if let content = FileSystemHelper.readFileContent(filePath) {
-                    output += "## \(relativePath)\n\n```\n\(content)\n```\n\n"
-                }
+        let prompt = promptText
+        let fileMetadata = selectedFiles
+            .sorted()
+            .map { (absolute: $0, relative: getRelativePath(for: $0)) }
+
+        Task.detached { [weak self] in
+            guard let self else { return }
+            let output = await self.buildExportOutput(prompt: prompt, files: fileMetadata)
+
+            await MainActor.run {
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setString(output, forType: .string)
+                self.triggerCopyFeedback()
             }
-            
-            output += "</codebase>"
         }
-        
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(output, forType: .string)
     }
     
     func saveToFile() {
-        var output = ""
-        
-        if !promptText.isEmpty {
-            output += "<prompt>\n\(promptText)\n</prompt>\n\n"
-        }
-        
-        if !selectedFiles.isEmpty {
-            output += "<codebase>\n"
-            
-            for filePath in selectedFiles.sorted() {
-                let relativePath = getRelativePath(for: filePath)
-                if let content = FileSystemHelper.readFileContent(filePath) {
-                    output += "## \(relativePath)\n\n```\n\(content)\n```\n\n"
-                }
-            }
-            
-            output += "</codebase>"
-        }
-        
         let savePanel = NSSavePanel()
         savePanel.allowedContentTypes = [.plainText]
         savePanel.nameFieldStringValue = "askrepo-export.txt"
         savePanel.title = "Save AskRepo Export"
         
-        savePanel.begin { response in
-            if response == .OK, let url = savePanel.url {
+        savePanel.begin { [weak self] response in
+            guard let self, response == .OK, let url = savePanel.url else { return }
+
+            let prompt = self.promptText
+            let fileMetadata = self.selectedFiles
+                .sorted()
+                .map { (absolute: $0, relative: self.getRelativePath(for: $0)) }
+
+            Task.detached { [weak self] in
+                guard let self else { return }
+                let output = await self.buildExportOutput(prompt: prompt, files: fileMetadata)
+
                 do {
                     try output.write(to: url, atomically: true, encoding: .utf8)
-                    
-                    // Show save feedback
-                    DispatchQueue.main.async {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            self.saveFeedbackShown = true
-                        }
-                        
-                        // Hide feedback after 2 seconds
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                self.saveFeedbackShown = false
-                            }
-                        }
+                    await MainActor.run {
+                        self.triggerSaveFeedback()
                     }
                 } catch {
                     print("Error saving file: \(error)")
                 }
+            }
+        }
+    }
+
+    private func buildExportOutput(prompt: String, files: [(absolute: String, relative: String)]) async -> String {
+        var sections: [String: String] = [:]
+
+        await withTaskGroup(of: (String, String?).self) { group in
+            for file in files {
+                group.addTask {
+                    let result = await FileSystemHelper.readFileContentAsync(file.absolute)
+                    switch result {
+                    case .success(let content):
+                        return (file.absolute, content)
+                    case .failure:
+                        return (file.absolute, nil)
+                    }
+                }
+            }
+
+            for await (path, content) in group {
+                if let content {
+                    sections[path] = content
+                }
+            }
+        }
+
+        var output = ""
+
+        if !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            output += "<prompt>\n\(prompt)\n</prompt>\n\n"
+        }
+
+        if !files.isEmpty {
+            output += "<codebase>\n"
+            for file in files {
+                guard let content = sections[file.absolute] else { continue }
+                output += "## \(file.relative)\n\n```\n\(content)\n```\n\n"
+            }
+            output += "</codebase>"
+        }
+
+        return output
+    }
+
+    @MainActor
+    private func triggerCopyFeedback() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            copyFeedbackShown = true
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.copyFeedbackShown = false
+            }
+        }
+    }
+
+    @MainActor
+    private func triggerSaveFeedback() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            saveFeedbackShown = true
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.saveFeedbackShown = false
             }
         }
     }

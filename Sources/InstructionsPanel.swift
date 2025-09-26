@@ -2,6 +2,7 @@ import SwiftUI
 
 struct InstructionsPanel: View {
     @ObservedObject var viewModel: ContentViewViewModel
+    @Environment(\.colorScheme) private var colorScheme
     
     enum FileSortOption: String, CaseIterable {
         case hierarchical = "Structure"
@@ -25,22 +26,6 @@ struct InstructionsPanel: View {
         static let radiusSmall: CGFloat = 8
         static let radiusMedium: CGFloat = 12
         static let radiusLarge: CGFloat = 16
-        
-        static let backgroundSecondary = Color.white
-        static let backgroundTertiary = Color(red: 0.96, green: 0.97, blue: 0.98)
-        static let surfaceCard = Color(red: 0.99, green: 0.99, blue: 1.0)
-        
-        static let accentPrimary = Color(red: 0.0, green: 0.48, blue: 1.0)
-        static let accentSecondary = Color(red: 0.34, green: 0.34, blue: 0.84)
-        static let accentSuccess = Color(red: 0.20, green: 0.78, blue: 0.35)
-        static let accentWarning = Color(red: 1.0, green: 0.58, blue: 0.0)
-        
-        static let textPrimary = Color(red: 0.11, green: 0.11, blue: 0.12)
-        static let textSecondary = Color(red: 0.47, green: 0.47, blue: 0.49)
-        static let textTertiary = Color(red: 0.68, green: 0.68, blue: 0.70)
-        
-        static let borderLight = Color(red: 0.90, green: 0.90, blue: 0.92)
-        static let shadowCard = Color.black.opacity(0.05)
     }
     
     // MARK: - Computed Properties
@@ -92,7 +77,7 @@ struct InstructionsPanel: View {
             headerSection
             
             Divider()
-                .background(ModernDesign.borderLight)
+                .background(ColorScheme.Dynamic.borderLight(colorScheme))
             
             // Instructions content
             VStack(spacing: ModernDesign.spacing4) {
@@ -104,12 +89,12 @@ struct InstructionsPanel: View {
         .frame(minWidth: 450, idealWidth: 550)
         .background(
             RoundedRectangle(cornerRadius: ModernDesign.radiusLarge)
-                .fill(ModernDesign.surfaceCard)
-                .shadow(color: ModernDesign.shadowCard, radius: 8, x: 0, y: 2)
+                .fill(ColorScheme.Dynamic.surfaceCard(colorScheme))
+                .shadow(color: ColorScheme.Dynamic.shadowCard(colorScheme), radius: 8, x: 0, y: 2)
         )
         .overlay(
             RoundedRectangle(cornerRadius: ModernDesign.radiusLarge)
-                .stroke(ModernDesign.borderLight, lineWidth: 1)
+                .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
         )
     }
     
@@ -118,11 +103,11 @@ struct InstructionsPanel: View {
             HStack(spacing: ModernDesign.spacing2) {
                 Image(systemName: "brain.head.profile")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(ModernDesign.accentSecondary)
+                    .foregroundColor(ColorScheme.Dynamic.accentSecondary(colorScheme))
                 
                 Text("AI Instructions")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(ModernDesign.textPrimary)
+                    .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
             }
             
             Spacer()
@@ -184,7 +169,7 @@ struct InstructionsPanel: View {
             .padding(.vertical, ModernDesign.spacing1)
             .background(
                 Capsule()
-                    .fill(ModernDesign.accentPrimary)
+                    .fill(ColorScheme.Dynamic.accentPrimary(colorScheme))
             )
             .fixedSize(horizontal: true, vertical: false)
         }
@@ -211,10 +196,10 @@ struct InstructionsPanel: View {
                 Capsule()
                     .fill(
                         viewModel.saveFeedbackShown
-                        ? ModernDesign.accentSuccess
+                        ? ColorScheme.Dynamic.accentSuccess
                         : (viewModel.selectedFiles.isEmpty && viewModel.promptText.isEmpty
-                            ? ModernDesign.textTertiary
-                            : ModernDesign.accentPrimary)
+                            ? ColorScheme.Dynamic.textTertiary(colorScheme)
+                            : ColorScheme.Dynamic.accentPrimary(colorScheme))
                     )
             )
         }
@@ -254,10 +239,10 @@ struct InstructionsPanel: View {
                 Capsule()
                     .fill(
                         viewModel.copyFeedbackShown
-                        ? ModernDesign.accentSuccess
+                        ? ColorScheme.Dynamic.accentSuccess
                         : (viewModel.selectedFiles.isEmpty && viewModel.promptText.isEmpty
-                            ? ModernDesign.textTertiary
-                            : ModernDesign.accentPrimary)
+                            ? ColorScheme.Dynamic.textTertiary(colorScheme)
+                            : ColorScheme.Dynamic.accentPrimary(colorScheme))
                     )
             )
         }
@@ -272,23 +257,23 @@ struct InstructionsPanel: View {
                 Label {
                     Text("Prompt")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(ModernDesign.textPrimary)
+                        .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                 } icon: {
                     Image(systemName: "text.cursor")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(ModernDesign.accentSecondary)
+                        .foregroundColor(ColorScheme.Dynamic.accentSecondary(colorScheme))
                 }
                 
                 Spacer()
                 
                 Text("\(viewModel.promptTokenCount) tokens")
                     .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundColor(ModernDesign.textTertiary)
+                    .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                     .padding(.horizontal, ModernDesign.spacing1)
                     .padding(.vertical, 2)
                     .background(
                         Capsule()
-                            .fill(ModernDesign.backgroundTertiary)
+                            .fill(ColorScheme.Dynamic.backgroundTertiary(colorScheme))
                     )
                     .monospacedDigit()
             }
@@ -296,18 +281,18 @@ struct InstructionsPanel: View {
             ZStack {
                 // Background and border
                 RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
-                    .fill(ModernDesign.backgroundSecondary)
-                    .shadow(color: ModernDesign.shadowCard, radius: 2, x: 0, y: 1)
+                    .fill(ColorScheme.Dynamic.backgroundSecondary(colorScheme))
+                    .shadow(color: ColorScheme.Dynamic.shadowCard(colorScheme), radius: 2, x: 0, y: 1)
                     .overlay(
                         RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
-                            .stroke(ModernDesign.borderLight, lineWidth: 1)
+                            .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
                     )
                 
                 // TextEditor
                 ZStack(alignment: .topLeading) {
                     TextEditor(text: $viewModel.promptText)
                         .font(.system(size: 14, weight: .regular))
-                        .foregroundColor(ModernDesign.textPrimary)
+                        .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                         .scrollContentBackground(.hidden)
                         .padding(.top, 6)
                     
@@ -316,7 +301,7 @@ struct InstructionsPanel: View {
                             VStack(alignment: .leading) {
                                 Text("Describe what you want the AI to do with your selected files...")
                                     .font(.system(size: 14, weight: .regular))
-                                    .foregroundColor(ModernDesign.textTertiary)
+                                    .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                                     .padding(.top, 8)
                                     .padding(.leading, 4)
                                 Spacer()
@@ -339,11 +324,11 @@ struct InstructionsPanel: View {
                 Label {
                     Text("Selected Files")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(ModernDesign.textPrimary)
+                        .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                 } icon: {
                     Image(systemName: "doc.on.doc.fill")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(ModernDesign.accentSuccess)
+                        .foregroundColor(ColorScheme.Dynamic.accentSuccess)
                 }
                 
                 Spacer()
@@ -354,11 +339,11 @@ struct InstructionsPanel: View {
                         HStack(spacing: 4) {
                             Image(systemName: "magnifyingglass")
                                 .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(ModernDesign.textTertiary)
+                                .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                             
                             TextField("Search...", text: $viewModel.searchText)
                                 .font(.system(size: 11, weight: .regular))
-                                .foregroundColor(ModernDesign.textPrimary)
+                                .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                                 .textFieldStyle(.plain)
                                 .frame(width: 80)
                         }
@@ -366,11 +351,11 @@ struct InstructionsPanel: View {
                         .padding(.vertical, 4)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(ModernDesign.backgroundSecondary)
+                                .fill(ColorScheme.Dynamic.backgroundSecondary(colorScheme))
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 6)
-                                .stroke(ModernDesign.borderLight, lineWidth: 0.5)
+                                .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 0.5)
                         )
                         
                         // Sort picker
@@ -392,23 +377,23 @@ struct InstructionsPanel: View {
                             HStack(spacing: 2) {
                                 Image(systemName: viewModel.sortOption.icon)
                                     .font(.system(size: 9, weight: .medium))
-                                    .foregroundColor(ModernDesign.textPrimary)
+                                    .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                                 Text(viewModel.sortOption.rawValue)
                                     .font(.system(size: 10, weight: .medium))
-                                    .foregroundColor(ModernDesign.textPrimary)
+                                    .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                                 Image(systemName: "chevron.down")
                                     .font(.system(size: 7, weight: .medium))
-                                    .foregroundColor(ModernDesign.textTertiary)
+                                    .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                             }
                             .padding(.horizontal, 4)
                             .padding(.vertical, 4)
                             .background(
                                 RoundedRectangle(cornerRadius: 6)
-                                    .fill(ModernDesign.backgroundSecondary)
+                                    .fill(ColorScheme.Dynamic.backgroundSecondary(colorScheme))
                             )
                             .overlay(
                                 RoundedRectangle(cornerRadius: 6)
-                                    .stroke(ModernDesign.borderLight, lineWidth: 0.5)
+                                    .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 0.5)
                             )
                         }
                         .menuStyle(.button)
@@ -417,13 +402,13 @@ struct InstructionsPanel: View {
                         metricBadge(
                             value: "\(filteredAndSortedFiles.count)",
                             label: "files",
-                            color: ModernDesign.accentSuccess
+                            color: ColorScheme.Dynamic.accentSuccess
                         )
                         
                         metricBadge(
                             value: "\(formatTokenCount(viewModel.totalTokenCount - viewModel.promptTokenCount))",
                             label: "tokens",
-                            color: ModernDesign.accentWarning
+                            color: ColorScheme.Dynamic.accentWarning
                         )
                     }
                 } else {
@@ -431,13 +416,13 @@ struct InstructionsPanel: View {
                         metricBadge(
                             value: "\(viewModel.selectedFiles.count)",
                             label: "files",
-                            color: ModernDesign.accentSuccess
+                            color: ColorScheme.Dynamic.accentSuccess
                         )
                         
                         metricBadge(
                             value: "\(formatTokenCount(viewModel.totalTokenCount - viewModel.promptTokenCount))",
                             label: "tokens",
-                            color: ModernDesign.accentWarning
+                            color: ColorScheme.Dynamic.accentWarning
                         )
                     }
                 }
@@ -455,12 +440,12 @@ struct InstructionsPanel: View {
                 .frame(maxHeight: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
-                        .fill(ModernDesign.backgroundSecondary)
-                        .shadow(color: ModernDesign.shadowCard, radius: 2, x: 0, y: 1)
+                        .fill(ColorScheme.Dynamic.backgroundSecondary(colorScheme))
+                        .shadow(color: ColorScheme.Dynamic.shadowCard(colorScheme), radius: 2, x: 0, y: 1)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
-                        .stroke(ModernDesign.borderLight, lineWidth: 1)
+                        .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
                 )
             } else {
                 emptyFilesState
@@ -477,7 +462,7 @@ struct InstructionsPanel: View {
             
             Text(label)
                 .font(.system(size: 9, weight: .medium))
-                .foregroundColor(ModernDesign.textTertiary)
+                .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                 .textCase(.uppercase)
         }
         .padding(.horizontal, ModernDesign.spacing1)
@@ -495,16 +480,16 @@ struct InstructionsPanel: View {
             VStack(spacing: ModernDesign.spacing2) {
                 Image(systemName: "doc.badge.plus")
                     .font(.system(size: 28, weight: .ultraLight))
-                    .foregroundColor(ModernDesign.textTertiary)
+                    .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                 
                 VStack(spacing: 4) {
                     Text("No Files Selected")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(ModernDesign.textSecondary)
+                        .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
                     
                     Text("Choose files from the explorer to include in your AI prompt")
                         .font(.system(size: 11, weight: .regular))
-                        .foregroundColor(ModernDesign.textTertiary)
+                        .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                 }
@@ -515,11 +500,11 @@ struct InstructionsPanel: View {
         .frame(maxWidth: .infinity, minHeight: 120)
         .background(
             RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
-                .fill(ModernDesign.backgroundTertiary.opacity(0.5))
+                .fill(ColorScheme.Dynamic.backgroundTertiary(colorScheme).opacity(0.5))
         )
         .overlay(
             RoundedRectangle(cornerRadius: ModernDesign.radiusMedium)
-                .stroke(ModernDesign.borderLight, lineWidth: 1)
+                .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 1)
                 .opacity(0.5)
         )
     }
@@ -536,19 +521,19 @@ struct InstructionsPanel: View {
             Text(viewModel.getRelativePath(for: filePath))
                 .font(.system(size: 12, weight: .medium))
                 .lineLimit(1)
-                .foregroundColor(ModernDesign.textPrimary)
+                .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
             
             Spacer(minLength: 0)
             
             // Token count badge
             Text("\(formatTokenCount(fileTokens))")
                 .font(.system(size: 10, weight: .medium, design: .rounded))
-                .foregroundColor(ModernDesign.textTertiary)
+                .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .background(
                     Capsule()
-                        .fill(ModernDesign.backgroundTertiary)
+                        .fill(ColorScheme.Dynamic.backgroundTertiary(colorScheme))
                 )
                 .monospacedDigit()
             
@@ -557,7 +542,7 @@ struct InstructionsPanel: View {
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 8, weight: .bold))
-                    .foregroundColor(ModernDesign.textTertiary)
+                    .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                     .frame(width: 16, height: 16)
                     .contentShape(Rectangle())
             }
@@ -567,11 +552,11 @@ struct InstructionsPanel: View {
         .padding(.vertical, ModernDesign.spacing1)
         .background(
             RoundedRectangle(cornerRadius: ModernDesign.radiusSmall)
-                .fill(ModernDesign.backgroundTertiary)
+                .fill(ColorScheme.Dynamic.backgroundTertiary(colorScheme))
         )
         .overlay(
             RoundedRectangle(cornerRadius: ModernDesign.radiusSmall)
-                .stroke(ModernDesign.borderLight, lineWidth: 0.5)
+                .stroke(ColorScheme.Dynamic.borderLight(colorScheme), lineWidth: 0.5)
         )
     }
     

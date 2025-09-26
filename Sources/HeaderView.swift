@@ -3,6 +3,7 @@ import SwiftUI
 
 struct HeaderView: View {
     @ObservedObject var viewModel: ContentViewViewModel
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         HStack(spacing: 24) {
@@ -20,7 +21,7 @@ struct HeaderView: View {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(
                             LinearGradient(
-                                colors: [Color(red: 0.0, green: 0.48, blue: 1.0), Color(red: 0.34, green: 0.34, blue: 0.84)],
+                                colors: [ColorScheme.Dynamic.accentPrimary(colorScheme), ColorScheme.Dynamic.accentSecondary(colorScheme)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -36,11 +37,11 @@ struct HeaderView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("AskRepo")
                         .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .foregroundColor(Color(red: 0.11, green: 0.11, blue: 0.12))
+                        .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                     
                     Text("AI Code Assistant")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(Color(red: 0.47, green: 0.47, blue: 0.49))
+                        .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
                 }
             }
             
@@ -52,21 +53,21 @@ struct HeaderView: View {
                     icon: "folder.fill",
                     value: "\(viewModel.selectedDirectories.count)",
                     label: "Folders",
-                    color: Color(red: 0.0, green: 0.48, blue: 1.0)
+                    color: ColorScheme.Dynamic.accentPrimary(colorScheme)
                 )
                 
                 modernStatCard(
                     icon: "doc.text.fill",
                     value: "\(viewModel.selectedFiles.count)",
                     label: "Files",
-                    color: Color(red: 0.20, green: 0.78, blue: 0.35)
+                    color: ColorScheme.Dynamic.accentSuccess
                 )
                 
                 modernStatCard(
                     icon: "textformat.abc",
                     value: "\(viewModel.formatTokenCount(viewModel.totalTokenCount))",
                     label: "Tokens",
-                    color: Color(red: 1.0, green: 0.58, blue: 0.0)
+                    color: ColorScheme.Dynamic.accentWarning
                 )
                 
                 // Settings button
@@ -75,11 +76,11 @@ struct HeaderView: View {
                 } label: {
                     Image(systemName: "gearshape.fill")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0))
+                        .foregroundColor(ColorScheme.Dynamic.accentPrimary(colorScheme))
                         .frame(width: 32, height: 32)
                         .background(
                             Circle()
-                                .fill(Color(red: 0.0, green: 0.48, blue: 1.0).opacity(0.12))
+                                .fill(ColorScheme.Dynamic.accentPrimary(colorScheme).opacity(0.12))
                         )
                 }
                 .buttonStyle(.plain)
@@ -88,7 +89,7 @@ struct HeaderView: View {
         .padding(.horizontal, 32)
         .padding(.vertical, 24)
         .background(
-            Color.white.opacity(0.8)
+            ColorScheme.Dynamic.backgroundGlass(colorScheme)
                 .background(.ultraThinMaterial)
         )
     }
@@ -103,12 +104,12 @@ struct HeaderView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(value)
                     .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundColor(Color(red: 0.11, green: 0.11, blue: 0.12))
+                    .foregroundColor(ColorScheme.Dynamic.textPrimary(colorScheme))
                     .monospacedDigit()
                 
                 Text(label)
                     .font(.system(size: 9, weight: .medium))
-                    .foregroundColor(Color(red: 0.68, green: 0.68, blue: 0.70))
+                    .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                     .textCase(.uppercase)
             }
         }

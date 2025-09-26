@@ -1,9 +1,9 @@
 import Foundation
 
 struct FileSystemHelper {
-    static func loadDirectoryAsync(_ url: URL, settings: Settings? = nil, completion: @escaping (Result<[FileNode], FileSystemError>) -> Void) {
+    static func loadDirectoryAsync(_ url: URL, ignoreMatcher: SystemIgnoreMatcher? = nil, completion: @escaping (Result<[FileNode], FileSystemError>) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
-            let result = loadDirectorySafe(url, settings: settings)
+            let result = loadDirectorySafe(url, ignoreMatcher: ignoreMatcher)
             DispatchQueue.main.async {
                 completion(result)
             }
@@ -11,33 +11,35 @@ struct FileSystemHelper {
     }
     
     /// Modern async/await version of directory loading
-    static func loadDirectoryAsync(_ url: URL, settings: Settings? = nil) async -> Result<[FileNode], FileSystemError> {
+    static func loadDirectoryAsync(_ url: URL, ignoreMatcher: SystemIgnoreMatcher? = nil) async -> Result<[FileNode], FileSystemError> {
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                let result = loadDirectorySafe(url, settings: settings)
+                let result = loadDirectorySafe(url, ignoreMatcher: ignoreMatcher)
                 continuation.resume(returning: result)
             }
         }
     }
     
-    static func loadDirectoryAsync(_ url: URL, settings: Settings? = nil, completion: @escaping ([FileNode]) -> Void) {
+    static func loadDirectoryAsync(_ url: URL, ignoreMatcher: SystemIgnoreMatcher? = nil, completion: @escaping ([FileNode]) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
-            let fileNodes = loadDirectorySync(url, settings: settings)
+            let fileNodes = loadDirectorySync(url, ignoreMatcher: ignoreMatcher)
             DispatchQueue.main.async {
                 completion(fileNodes)
             }
         }
     }
-    static func loadDirectorySafe(_ url: URL, settings: Settings? = nil) -> Result<[FileNode], FileSystemError> {
+    static func loadDirectorySafe(_ url: URL, ignoreMatcher: SystemIgnoreMatcher? = nil) -> Result<[FileNode], FileSystemError> {
         // Validate path first
         guard FilePathValidator.isValidDirectoryPath(url.path) else {
             return .failure(.invalidPath(url.path))
         }
         
-        guard url.startAccessingSecurityScopedResource() else {
-            return .failure(.accessDenied(url.path))
+        let didAccessSecurityScope = url.startAccessingSecurityScopedResource()
+        defer {
+            if didAccessSecurityScope {
+                url.stopAccessingSecurityScopedResource()
+            }
         }
-        defer { url.stopAccessingSecurityScopedResource() }
         
         // Check if path exists and is a directory
         var isDirectory: ObjCBool = false
@@ -60,7 +62,7 @@ struct FileSystemHelper {
             )
             
             let nodes = contents.compactMap { fileURL in
-                createFileNodeSafe(from: fileURL, gitignoreParser: gitignoreParser, basePath: url.path, settings: settings)
+                createFileNodeSafe(from: fileURL, gitignoreParser: gitignoreParser, basePath: url.path, ignoreMatcher: ignoreMatcher)
             }.sorted { lhs, rhs in
                 // Sort directories first, then files, both alphabetically
                 if lhs.isDirectory && !rhs.isDirectory {
@@ -79,8 +81,8 @@ struct FileSystemHelper {
         }
     }
     
-    static func loadDirectorySync(_ url: URL, settings: Settings? = nil) -> [FileNode] {
-        let result = loadDirectorySafe(url, settings: settings)
+    static func loadDirectorySync(_ url: URL, ignoreMatcher: SystemIgnoreMatcher? = nil) -> [FileNode] {
+        let result = loadDirectorySafe(url, ignoreMatcher: ignoreMatcher)
         switch result {
         case .success(let nodes):
             return nodes
@@ -90,16 +92,16 @@ struct FileSystemHelper {
         }
     }
     
-    private static func createFileNodeSafe(from url: URL, gitignoreParser: GitIgnoreParser?, basePath: String, settings: Settings? = nil) -> FileNode? {
+    private static func createFileNodeSafe(from url: URL, gitignoreParser: GitIgnoreParser?, basePath: String, ignoreMatcher: SystemIgnoreMatcher? = nil) -> FileNode? {
         // Validate the file path
         guard FilePathValidator.isValidPath(url.path) else {
             return nil
         }
         
-        return createFileNode(from: url, gitignoreParser: gitignoreParser, basePath: basePath, settings: settings)
+        return createFileNode(from: url, gitignoreParser: gitignoreParser, basePath: basePath, ignoreMatcher: ignoreMatcher)
     }
-    
-    private static func createFileNode(from url: URL, gitignoreParser: GitIgnoreParser?, basePath: String, settings: Settings? = nil) -> FileNode? {
+
+    private static func createFileNode(from url: URL, gitignoreParser: GitIgnoreParser?, basePath: String, ignoreMatcher: SystemIgnoreMatcher? = nil) -> FileNode? {
         do {
             let resourceValues = try url.resourceValues(forKeys: [.isDirectoryKey, .isRegularFileKey])
             let isDirectory = resourceValues.isDirectory ?? false
@@ -111,20 +113,10 @@ struct FileSystemHelper {
             let name = url.lastPathComponent
             
             // Check if file should be ignored by gitignore
-            let isIgnored = gitignoreParser?.shouldIgnore(path: url.path, isDirectory: isDirectory, relativeTo: basePath) ?? false
+            let isGitIgnored = gitignoreParser?.shouldIgnore(path: url.path, isDirectory: isDirectory, relativeTo: basePath) ?? false
             
             // Check if file should be ignored by system ignores
-            let isSystemIgnored = settings?.shouldIgnore(path: url.path, isDirectory: isDirectory) ?? false
-            
-            // Skip gitignored files and directories entirely
-            if isIgnored {
-                return nil
-            }
-            
-            // Skip system ignored files and directories entirely
-            if isSystemIgnored {
-                return nil
-            }
+            let isSystemIgnored = ignoreMatcher?.shouldIgnore(path: url.path, isDirectory: isDirectory) ?? false
             
             // Skip certain file types and directories (but keep gitignore files)
             if shouldSkipFile(name: name, isDirectory: isDirectory) {
@@ -132,18 +124,27 @@ struct FileSystemHelper {
             }
             
             var children: [FileNode] = []
-            if isDirectory {
-                // Load children for directories (but don't recurse too deep)
-                children = loadDirectorySync(url, settings: settings)
+            if isDirectory && !isGitIgnored {
+                // Load children for directories unless gitignored
+                children = loadDirectorySync(url, ignoreMatcher: ignoreMatcher)
             }
             
+            let ignoreReason: FileNode.IgnoreReason?
+            if isGitIgnored {
+                ignoreReason = .gitignore
+            } else if isSystemIgnored {
+                ignoreReason = .system
+            } else {
+                ignoreReason = nil
+            }
+
             return FileNode(
                 name: name,
                 path: url.path,
                 isDirectory: isDirectory,
                 children: children,
                 isExpanded: false,
-                isIgnored: false
+                ignoreReason: ignoreReason
             )
         } catch {
             print("Error reading file attributes for \(url.path): \(error)")
@@ -249,6 +250,10 @@ struct FileSystemHelper {
     
     static func getAllNonIgnoredFilePaths(from node: FileNode, gitignoreParser: GitIgnoreParser?, basePath: String) -> [String] {
         var filePaths: [String] = []
+        
+        if node.isIgnored {
+            return filePaths
+        }
         
         if !node.isDirectory {
             // Use the isIgnored property that was set during file loading
