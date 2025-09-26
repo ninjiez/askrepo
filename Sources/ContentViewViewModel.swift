@@ -322,76 +322,117 @@ class ContentViewViewModel: ObservableObject {
     }
     
     func copyToClipboard() {
-        var output = ""
-        
-        if !promptText.isEmpty {
-            output += "<prompt>\n\(promptText)\n</prompt>\n\n"
-        }
-        
-        if !selectedFiles.isEmpty {
-            output += "<codebase>\n"
-            
-            for filePath in selectedFiles.sorted() {
-                let relativePath = getRelativePath(for: filePath)
-                if let content = FileSystemHelper.readFileContent(filePath) {
-                    output += "## \(relativePath)\n\n```\n\(content)\n```\n\n"
-                }
+        let prompt = promptText
+        let fileMetadata = selectedFiles
+            .sorted()
+            .map { (absolute: $0, relative: getRelativePath(for: $0)) }
+
+        Task.detached { [weak self] in
+            guard let self else { return }
+            let output = await self.buildExportOutput(prompt: prompt, files: fileMetadata)
+
+            await MainActor.run {
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setString(output, forType: .string)
+                self.triggerCopyFeedback()
             }
-            
-            output += "</codebase>"
         }
-        
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(output, forType: .string)
     }
     
     func saveToFile() {
-        var output = ""
-        
-        if !promptText.isEmpty {
-            output += "<prompt>\n\(promptText)\n</prompt>\n\n"
-        }
-        
-        if !selectedFiles.isEmpty {
-            output += "<codebase>\n"
-            
-            for filePath in selectedFiles.sorted() {
-                let relativePath = getRelativePath(for: filePath)
-                if let content = FileSystemHelper.readFileContent(filePath) {
-                    output += "## \(relativePath)\n\n```\n\(content)\n```\n\n"
-                }
-            }
-            
-            output += "</codebase>"
-        }
-        
         let savePanel = NSSavePanel()
         savePanel.allowedContentTypes = [.plainText]
         savePanel.nameFieldStringValue = "askrepo-export.txt"
         savePanel.title = "Save AskRepo Export"
         
-        savePanel.begin { response in
-            if response == .OK, let url = savePanel.url {
+        savePanel.begin { [weak self] response in
+            guard let self, response == .OK, let url = savePanel.url else { return }
+
+            let prompt = self.promptText
+            let fileMetadata = self.selectedFiles
+                .sorted()
+                .map { (absolute: $0, relative: self.getRelativePath(for: $0)) }
+
+            Task.detached { [weak self] in
+                guard let self else { return }
+                let output = await self.buildExportOutput(prompt: prompt, files: fileMetadata)
+
                 do {
                     try output.write(to: url, atomically: true, encoding: .utf8)
-                    
-                    // Show save feedback
-                    DispatchQueue.main.async {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            self.saveFeedbackShown = true
-                        }
-                        
-                        // Hide feedback after 2 seconds
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                self.saveFeedbackShown = false
-                            }
-                        }
+                    await MainActor.run {
+                        self.triggerSaveFeedback()
                     }
                 } catch {
                     print("Error saving file: \(error)")
                 }
+            }
+        }
+    }
+
+    private func buildExportOutput(prompt: String, files: [(absolute: String, relative: String)]) async -> String {
+        var sections: [String: String] = [:]
+
+        await withTaskGroup(of: (String, String?).self) { group in
+            for file in files {
+                group.addTask {
+                    let result = await FileSystemHelper.readFileContentAsync(file.absolute)
+                    switch result {
+                    case .success(let content):
+                        return (file.absolute, content)
+                    case .failure:
+                        return (file.absolute, nil)
+                    }
+                }
+            }
+
+            for await (path, content) in group {
+                if let content {
+                    sections[path] = content
+                }
+            }
+        }
+
+        var output = ""
+
+        if !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            output += "<prompt>\n\(prompt)\n</prompt>\n\n"
+        }
+
+        if !files.isEmpty {
+            output += "<codebase>\n"
+            for file in files {
+                guard let content = sections[file.absolute] else { continue }
+                output += "## \(file.relative)\n\n```\n\(content)\n```\n\n"
+            }
+            output += "</codebase>"
+        }
+
+        return output
+    }
+
+    @MainActor
+    private func triggerCopyFeedback() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            copyFeedbackShown = true
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.copyFeedbackShown = false
+            }
+        }
+    }
+
+    @MainActor
+    private func triggerSaveFeedback() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            saveFeedbackShown = true
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.saveFeedbackShown = false
             }
         }
     }
