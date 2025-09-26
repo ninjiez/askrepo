@@ -148,9 +148,11 @@ class ContentViewViewModel: ObservableObject {
         var newFileNodes: [FileNode] = []
         let previouslyLoadedDirectories = Set(fileNodes.map { $0.path })
 
+        let ignoreMatcher = settings.ignoreSnapshot()
+
         for url in selectedDirectories {
             group.enter()
-            FileSystemHelper.loadDirectoryAsync(url, settings: settings) { nodes in
+            FileSystemHelper.loadDirectoryAsync(url, ignoreMatcher: ignoreMatcher) { nodes in
                 let fileNode = FileNode(
                     name: url.lastPathComponent,
                     path: url.path,

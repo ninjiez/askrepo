@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 // MARK: - Prompt Template Model
-struct PromptTemplate: Codable, Identifiable {
+struct PromptTemplate: Codable, Identifiable, Sendable {
     let id: UUID
     var name: String
     var content: String
@@ -149,49 +149,62 @@ class Settings: ObservableObject {
     }
     
     func shouldIgnore(path: String, isDirectory: Bool) -> Bool {
+        ignoreSnapshot().shouldIgnore(path: path, isDirectory: isDirectory)
+    }
+
+    func ignoreSnapshot() -> SystemIgnoreMatcher {
+        SystemIgnoreMatcher(patterns: systemIgnores)
+    }
+}
+
+// MARK: - Sendable Ignore Matcher
+struct SystemIgnoreMatcher: Sendable {
+    let patterns: [String]
+
+    func shouldIgnore(path: String, isDirectory: Bool) -> Bool {
         let fileName = URL(fileURLWithPath: path).lastPathComponent
         let relativePath = path
-        
-        for pattern in systemIgnores {
-            if matchesPattern(pattern: pattern, path: relativePath, fileName: fileName, isDirectory: isDirectory) {
+
+        for pattern in patterns {
+            if Self.matchesPattern(pattern: pattern, path: relativePath, fileName: fileName, isDirectory: isDirectory) {
                 return true
             }
         }
-        
+
         return false
     }
-    
-    private func matchesPattern(pattern: String, path: String, fileName: String, isDirectory: Bool) -> Bool {
+
+    private static func matchesPattern(pattern: String, path: String, fileName: String, isDirectory: Bool) -> Bool {
         let trimmedPattern = pattern.trimmingCharacters(in: .whitespacesAndNewlines)
-        
+
         // Directory-only patterns (ending with /)
         if trimmedPattern.hasSuffix("/") {
             if !isDirectory { return false }
             let dirPattern = String(trimmedPattern.dropLast())
-            return matchesWildcard(pattern: dirPattern, text: fileName) || 
+            return matchesWildcard(pattern: dirPattern, text: fileName) ||
                    path.contains("/" + dirPattern + "/") ||
                    path.hasSuffix("/" + dirPattern)
         }
-        
+
         // Wildcard patterns
         if trimmedPattern.contains("*") || trimmedPattern.contains("?") {
             return matchesWildcard(pattern: trimmedPattern, text: fileName)
         }
-        
+
         // Exact filename match
         return fileName == trimmedPattern || path.hasSuffix("/" + trimmedPattern)
     }
-    
-    private func matchesWildcard(pattern: String, text: String) -> Bool {
+
+    private static func matchesWildcard(pattern: String, text: String) -> Bool {
         let regexPattern = pattern
             .replacingOccurrences(of: ".", with: "\\.")
             .replacingOccurrences(of: "*", with: ".*")
             .replacingOccurrences(of: "?", with: ".")
-        
+
         guard let regex = try? NSRegularExpression(pattern: "^" + regexPattern + "$", options: [.caseInsensitive]) else {
             return false
         }
-        
+
         let range = NSRange(text.startIndex..<text.endIndex, in: text)
         return regex.firstMatch(in: text, options: [], range: range) != nil
     }
