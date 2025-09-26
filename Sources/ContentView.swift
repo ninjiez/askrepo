@@ -6,7 +6,7 @@ struct ContentView: View {
     @Environment(\.colorScheme) private var colorScheme
 
 
-    private let appVersion = "0.8"
+    private let appVersion = "0.9"
     
     
     // MARK: - App Icon Loading
