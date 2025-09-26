@@ -195,9 +195,9 @@ struct FileExplorerView: View {
                                 level: 0,
                                 isTopLevel: true,
                                 onRemoveDirectory: { viewModel.removeDirectory(at: index) },
-                                onGitIgnoreSelect: { filePath in
-                                    viewModel.gitIgnoreFileToSelect = filePath
-                                    viewModel.showingGitIgnoreConfirmation = true
+                                onIgnoredSelect: { filePath, reason in
+                                    viewModel.ignoredFileToSelect = (path: filePath, reason: reason)
+                                    viewModel.showingIgnoredFileConfirmation = true
                                 }
                             )
                         }

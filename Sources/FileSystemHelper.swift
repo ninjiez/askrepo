@@ -100,7 +100,7 @@ struct FileSystemHelper {
         
         return createFileNode(from: url, gitignoreParser: gitignoreParser, basePath: basePath, ignoreMatcher: ignoreMatcher)
     }
-    
+
     private static func createFileNode(from url: URL, gitignoreParser: GitIgnoreParser?, basePath: String, ignoreMatcher: SystemIgnoreMatcher? = nil) -> FileNode? {
         do {
             let resourceValues = try url.resourceValues(forKeys: [.isDirectoryKey, .isRegularFileKey])
@@ -118,11 +118,6 @@ struct FileSystemHelper {
             // Check if file should be ignored by system ignores
             let isSystemIgnored = ignoreMatcher?.shouldIgnore(path: url.path, isDirectory: isDirectory) ?? false
             
-            // Skip system ignored files and directories entirely
-            if isSystemIgnored {
-                return nil
-            }
-            
             // Skip certain file types and directories (but keep gitignore files)
             if shouldSkipFile(name: name, isDirectory: isDirectory) {
                 return nil
@@ -134,13 +129,22 @@ struct FileSystemHelper {
                 children = loadDirectorySync(url, ignoreMatcher: ignoreMatcher)
             }
             
+            let ignoreReason: FileNode.IgnoreReason?
+            if isGitIgnored {
+                ignoreReason = .gitignore
+            } else if isSystemIgnored {
+                ignoreReason = .system
+            } else {
+                ignoreReason = nil
+            }
+
             return FileNode(
                 name: name,
                 path: url.path,
                 isDirectory: isDirectory,
                 children: children,
                 isExpanded: false,
-                isIgnored: isGitIgnored
+                ignoreReason: ignoreReason
             )
         } catch {
             print("Error reading file attributes for \(url.path): \(error)")

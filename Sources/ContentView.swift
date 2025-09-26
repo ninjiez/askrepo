@@ -156,25 +156,29 @@ struct ContentView: View {
             }
         }
         .overlay {
-            if viewModel.showingGitIgnoreConfirmation {
+            if viewModel.showingIgnoredFileConfirmation {
                 modernConfirmationOverlay(
-                    title: "Include Git-Ignored File",
+                    title: "Include Ignored File",
                     message: {
-                        if let filePath = viewModel.gitIgnoreFileToSelect {
-                            let fileName = URL(fileURLWithPath: filePath).lastPathComponent
-                            return "'\(fileName)' is ignored by .gitignore. Are you sure you want to include it in your AI prompt?"
-                        } else {
-                            return "This file is ignored by .gitignore. Are you sure you want to include it?"
+                        guard let ignored = viewModel.ignoredFileToSelect else {
+                            return "This file is currently ignored. Include it in your AI prompt?"
+                        }
+                        let fileName = URL(fileURLWithPath: ignored.path).lastPathComponent
+                        switch ignored.reason {
+                        case .gitignore:
+                            return "'\(fileName)' is ignored by .gitignore. Include it in your AI prompt?"
+                        case .system:
+                            return "'\(fileName)' matches your blacklist settings. Include it in your AI prompt?"
                         }
                     }(),
                     confirmText: "Include File",
                     onConfirm: {
-                        confirmIncludeGitIgnoredFile()
-                        viewModel.showingGitIgnoreConfirmation = false
+                        confirmIncludeIgnoredFile()
+                        viewModel.showingIgnoredFileConfirmation = false
                     },
                     onCancel: {
-                        viewModel.gitIgnoreFileToSelect = nil
-                        viewModel.showingGitIgnoreConfirmation = false
+                        viewModel.ignoredFileToSelect = nil
+                        viewModel.showingIgnoredFileConfirmation = false
                     }
                 )
             }
@@ -377,8 +381,8 @@ struct ContentView: View {
         viewModel.refreshDirectories()
     }
     
-    private func confirmIncludeGitIgnoredFile() {
-        viewModel.confirmIncludeGitIgnoredFile()
+    private func confirmIncludeIgnoredFile() {
+        viewModel.confirmIncludeIgnoredFile()
     }
     
     private func loadDirectories(autoSelectNewFiles: Bool = false) {

@@ -6,7 +6,7 @@ struct FileRowView: View {
     let level: Int
     let isTopLevel: Bool
     let onRemoveDirectory: (() -> Void)?
-    let onGitIgnoreSelect: ((String) -> Void)?
+    let onIgnoredSelect: ((String, FileNode.IgnoreReason) -> Void)?
     @State private var isExpanded: Bool = false
     @State private var isHovered: Bool = false
     @Environment(\.colorScheme) private var colorScheme
@@ -23,23 +23,23 @@ struct FileRowView: View {
     private let indentWidth: CGFloat = 16
     
     // Convenience initializer for non-top-level items
-    init(node: FileNode, selectedFiles: Binding<Set<String>>, level: Int, onGitIgnoreSelect: ((String) -> Void)?) {
+    init(node: FileNode, selectedFiles: Binding<Set<String>>, level: Int, onIgnoredSelect: ((String, FileNode.IgnoreReason) -> Void)?) {
         self.node = node
         self._selectedFiles = selectedFiles
         self.level = level
         self.isTopLevel = false
         self.onRemoveDirectory = nil
-        self.onGitIgnoreSelect = onGitIgnoreSelect
+        self.onIgnoredSelect = onIgnoredSelect
     }
     
     // Full initializer for top-level items
-    init(node: FileNode, selectedFiles: Binding<Set<String>>, level: Int, isTopLevel: Bool, onRemoveDirectory: (() -> Void)?, onGitIgnoreSelect: ((String) -> Void)?) {
+    init(node: FileNode, selectedFiles: Binding<Set<String>>, level: Int, isTopLevel: Bool, onRemoveDirectory: (() -> Void)?, onIgnoredSelect: ((String, FileNode.IgnoreReason) -> Void)?) {
         self.node = node
         self._selectedFiles = selectedFiles
         self.level = level
         self.isTopLevel = isTopLevel
         self.onRemoveDirectory = onRemoveDirectory
-        self.onGitIgnoreSelect = onGitIgnoreSelect
+        self.onIgnoredSelect = onIgnoredSelect
     }
     
     var body: some View {
@@ -53,7 +53,7 @@ struct FileRowView: View {
                         node: child,
                         selectedFiles: $selectedFiles,
                         level: level + 1,
-                        onGitIgnoreSelect: onGitIgnoreSelect
+                        onIgnoredSelect: onIgnoredSelect
                     )
                 }
             }
@@ -161,8 +161,8 @@ struct FileRowView: View {
             },
             set: { isSelected in
                 // Check if this is an ignored file and user is trying to select it
-                if isSelected && node.isIgnored && !node.isDirectory {
-                    onGitIgnoreSelect?(node.path)
+                if isSelected, let reason = node.ignoreReason, !node.isDirectory {
+                    onIgnoredSelect?(node.path, reason)
                     return
                 }
                 

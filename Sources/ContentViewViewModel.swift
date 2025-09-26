@@ -13,8 +13,8 @@ class ContentViewViewModel: ObservableObject {
     @Published var directoryToDelete: Int?
     @Published var copyFeedbackShown = false
     @Published var saveFeedbackShown = false
-    @Published var showingGitIgnoreConfirmation = false
-    @Published var gitIgnoreFileToSelect: String?
+    @Published var showingIgnoredFileConfirmation = false
+    @Published var ignoredFileToSelect: (path: String, reason: FileNode.IgnoreReason)?
     @Published var showingSettings = false
 
     // Search and sorting for selected files
@@ -132,14 +132,14 @@ class ContentViewViewModel: ObservableObject {
         updateTotalTokenCount()
     }
     
-    func confirmIncludeGitIgnoredFile() {
-        guard let filePath = gitIgnoreFileToSelect else { return }
+    func confirmIncludeIgnoredFile() {
+        guard let ignored = ignoredFileToSelect else { return }
         
         // Add the ignored file to selected files
-        selectedFiles.insert(filePath)
+        selectedFiles.insert(ignored.path)
         
         // Reset confirmation state
-        gitIgnoreFileToSelect = nil
+        ignoredFileToSelect = nil
     }
     
     func loadDirectories(autoSelectNewFiles: Bool = true) {
@@ -159,7 +159,7 @@ class ContentViewViewModel: ObservableObject {
                     isDirectory: true,
                     children: nodes,
                     isExpanded: true,
-                    isIgnored: false
+                    ignoreReason: nil
                 )
                 newFileNodes.append(fileNode)
                 group.leave()
