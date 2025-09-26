@@ -34,10 +34,12 @@ struct FileSystemHelper {
             return .failure(.invalidPath(url.path))
         }
         
-        guard url.startAccessingSecurityScopedResource() else {
-            return .failure(.accessDenied(url.path))
+        let didAccessSecurityScope = url.startAccessingSecurityScopedResource()
+        defer {
+            if didAccessSecurityScope {
+                url.stopAccessingSecurityScopedResource()
+            }
         }
-        defer { url.stopAccessingSecurityScopedResource() }
         
         // Check if path exists and is a directory
         var isDirectory: ObjCBool = false
