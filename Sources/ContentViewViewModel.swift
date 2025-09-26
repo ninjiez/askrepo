@@ -29,6 +29,7 @@ class ContentViewViewModel: ObservableObject {
     @Published var fileTokenCache: [String: Int] = [:]
     @Published var promptTokenCount: Int = 0
     @Published var tokenCountingTask: Task<Void, Never>?
+    var fileTokenTask: Task<Void, Never>?
     
     @Published var isLoading: Bool = false
 
@@ -242,18 +243,20 @@ class ContentViewViewModel: ObservableObject {
     }
     
     func calculateFileTokensOnly() {
-        // Only recalculate tokens for files that aren't cached
-        for filePath in selectedFiles {
-            if fileTokenCache[filePath] == nil {
-                if let content = FileSystemHelper.readFileContent(filePath) {
-                    fileTokenCache[filePath] = TokenCounter.countTokens(in: content)
-                }
-            }
-        }
-        
+        // Cancel any in-flight work before starting a new recount
+        fileTokenTask?.cancel()
+
         // Remove cached tokens for files that are no longer selected
         let selectedFilesSet = Set(selectedFiles)
         fileTokenCache = fileTokenCache.filter { selectedFilesSet.contains($0.key) }
+
+        // Launch an async task to populate accurate token counts
+        fileTokenTask = Task { [weak self] in
+            guard let self else { return }
+            await self.calculateFileTokensAsync()
+        }
+
+        updateTotalTokenCount()
     }
     
     /// Async version of token calculation for better performance
@@ -266,6 +269,7 @@ class ContentViewViewModel: ObservableObject {
         let batches = filesToProcess.chunked(into: batchSize)
         
         for batch in batches {
+            if Task.isCancelled { break }
             await withTaskGroup(of: (String, Int?).self) { group in
                 for filePath in batch {
                     group.addTask {
@@ -294,6 +298,8 @@ class ContentViewViewModel: ObservableObject {
         // Remove cached tokens for files that are no longer selected
         let selectedFilesSet = Set(selectedFiles)
         fileTokenCache = fileTokenCache.filter { selectedFilesSet.contains($0.key) }
+
+        updateTotalTokenCount()
     }
     
     func updateTotalTokenCount() {
@@ -302,10 +308,17 @@ class ContentViewViewModel: ObservableObject {
     }
     
     func calculateTokenCount() {
-        // Legacy function for initial load - calculate everything at once
-        promptTokenCount = TokenCounter.countTokens(in: promptText)
+        tokenCountingTask?.cancel()
+        tokenCountingTask = Task { [weak self] in
+            guard let self else { return }
+            let count = await TokenCounter.countTokensAsync(in: self.promptText)
+            await MainActor.run {
+                self.promptTokenCount = count
+                self.updateTotalTokenCount()
+            }
+        }
+
         calculateFileTokensOnly()
-        updateTotalTokenCount()
     }
     
     func copyToClipboard() {

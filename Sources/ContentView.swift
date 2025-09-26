@@ -114,6 +114,7 @@ struct ContentView: View {
         .onDisappear {
             saveDirectoriesToUserDefaults()
             viewModel.tokenCountingTask?.cancel()
+            viewModel.fileTokenTask?.cancel()
         }
         .overlay {
             if viewModel.showingClearAllConfirmation {
