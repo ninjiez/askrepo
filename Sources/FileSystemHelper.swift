@@ -113,15 +113,10 @@ struct FileSystemHelper {
             let name = url.lastPathComponent
             
             // Check if file should be ignored by gitignore
-            let isIgnored = gitignoreParser?.shouldIgnore(path: url.path, isDirectory: isDirectory, relativeTo: basePath) ?? false
+            let isGitIgnored = gitignoreParser?.shouldIgnore(path: url.path, isDirectory: isDirectory, relativeTo: basePath) ?? false
             
             // Check if file should be ignored by system ignores
             let isSystemIgnored = settings?.shouldIgnore(path: url.path, isDirectory: isDirectory) ?? false
-            
-            // Skip gitignored files and directories entirely
-            if isIgnored {
-                return nil
-            }
             
             // Skip system ignored files and directories entirely
             if isSystemIgnored {
@@ -134,8 +129,8 @@ struct FileSystemHelper {
             }
             
             var children: [FileNode] = []
-            if isDirectory {
-                // Load children for directories (but don't recurse too deep)
+            if isDirectory && !isGitIgnored {
+                // Load children for directories unless gitignored
                 children = loadDirectorySync(url, settings: settings)
             }
             
@@ -145,7 +140,7 @@ struct FileSystemHelper {
                 isDirectory: isDirectory,
                 children: children,
                 isExpanded: false,
-                isIgnored: false
+                isIgnored: isGitIgnored
             )
         } catch {
             print("Error reading file attributes for \(url.path): \(error)")
@@ -251,6 +246,10 @@ struct FileSystemHelper {
     
     static func getAllNonIgnoredFilePaths(from node: FileNode, gitignoreParser: GitIgnoreParser?, basePath: String) -> [String] {
         var filePaths: [String] = []
+        
+        if node.isIgnored {
+            return filePaths
+        }
         
         if !node.isDirectory {
             // Use the isIgnored property that was set during file loading
