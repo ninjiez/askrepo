@@ -45,7 +45,7 @@ class ContentViewViewModel: ObservableObject {
         }
         
         selectedDirectories.append(url)
-        loadDirectories()
+        loadDirectories(autoSelectNewFiles: true)
         
         // Save to UserDefaults
         saveDirectoriesToUserDefaults()
@@ -66,7 +66,7 @@ class ContentViewViewModel: ObservableObject {
         let directoryPath = removedDirectory.path
         selectedFiles = selectedFiles.filter { !$0.hasPrefix(directoryPath) }
         
-        loadDirectories()
+        loadDirectories(autoSelectNewFiles: false)
         
         // Save to UserDefaults
         saveDirectoriesToUserDefaults()
@@ -91,8 +91,8 @@ class ContentViewViewModel: ObservableObject {
         // Clear file token cache to force recalculation
         fileTokenCache.removeAll()
         
-        // Reload all directories
-        loadDirectories()
+        // Reload all directories without auto-selecting manually deselected files
+        loadDirectories(autoSelectNewFiles: false)
         
         // Update selected files - keep files that still exist, remove files that no longer exist
         var updatedSelectedFiles: Set<String> = []
@@ -141,10 +141,11 @@ class ContentViewViewModel: ObservableObject {
         gitIgnoreFileToSelect = nil
     }
     
-    func loadDirectories() {
+    func loadDirectories(autoSelectNewFiles: Bool = true) {
         isLoading = true
         let group = DispatchGroup()
         var newFileNodes: [FileNode] = []
+        let previouslyLoadedDirectories = Set(fileNodes.map { $0.path })
 
         for url in selectedDirectories {
             group.enter()
@@ -166,12 +167,14 @@ class ContentViewViewModel: ObservableObject {
             self.fileNodes = newFileNodes
             self.isLoading = false
             
-            // Automatically select all non-ignored files in the newly added directory
-            for node in newFileNodes {
+            guard autoSelectNewFiles else { return }
+
+            // Automatically select files only for directories that are new to the tree
+            for node in newFileNodes where !previouslyLoadedDirectories.contains(node.path) {
                 let gitignoreParser = GitIgnoreParser.loadFromDirectory(URL(fileURLWithPath: node.path))
                 let allFilePaths = FileSystemHelper.getAllNonIgnoredFilePaths(
-                    from: node, 
-                    gitignoreParser: gitignoreParser, 
+                    from: node,
+                    gitignoreParser: gitignoreParser,
                     basePath: node.path
                 )
                 for filePath in allFilePaths {

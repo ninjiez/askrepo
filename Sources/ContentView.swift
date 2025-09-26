@@ -93,7 +93,7 @@ struct ContentView: View {
         }
         .onChange(of: viewModel.settings.systemIgnores) { _ in
             // Reload directories when system ignores change
-            loadDirectories()
+            loadDirectories(autoSelectNewFiles: false)
             // Remove any selected files that are now ignored
             let ignoredFiles = viewModel.selectedFiles.filter { filePath in
                 viewModel.settings.shouldIgnore(path: filePath, isDirectory: false)
@@ -380,8 +380,8 @@ struct ContentView: View {
         viewModel.confirmIncludeGitIgnoredFile()
     }
     
-    private func loadDirectories() {
-        viewModel.loadDirectories()
+    private func loadDirectories(autoSelectNewFiles: Bool = false) {
+        viewModel.loadDirectories(autoSelectNewFiles: autoSelectNewFiles)
     }
     
     private func getRelativePath(for absolutePath: String) -> String {
