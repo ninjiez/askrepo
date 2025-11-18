@@ -85,24 +85,15 @@ struct ContentView: View {
             }
         }
         .onChange(of: viewModel.selectedFiles) { _ in
-            calculateFileTokensOnly()
-            updateTotalTokenCount()
+            // Use debounced async calculation to prevent UI freezing
+            viewModel.triggerFileTokenCalculation()
         }
         .onChange(of: viewModel.promptText) { _ in
             debouncedPromptTokenCount()
         }
         .onChange(of: viewModel.settings.systemIgnores) { _ in
-            // Reload directories when system ignores change
-            loadDirectories()
-            // Remove any selected files that are now ignored
-            let ignoredFiles = viewModel.selectedFiles.filter { filePath in
-                viewModel.settings.shouldIgnore(path: filePath, isDirectory: false)
-            }
-            for ignoredFile in ignoredFiles {
-                viewModel.selectedFiles.remove(ignoredFile)
-            }
-            calculateFileTokensOnly()
-            updateTotalTokenCount()
+            // Handle system ignores change in VM (reloads dirs, updates selection, recalcs tokens)
+            viewModel.handleSystemIgnoresChange()
         }
         .frame(minWidth: 1200, minHeight: 800)
         .onAppear {
@@ -114,6 +105,7 @@ struct ContentView: View {
         .onDisappear {
             saveDirectoriesToUserDefaults()
             viewModel.tokenCountingTask?.cancel()
+            viewModel.fileTokenCountingTask?.cancel()
         }
         .overlay {
             if viewModel.showingClearAllConfirmation {
@@ -380,10 +372,6 @@ struct ContentView: View {
         viewModel.confirmIncludeGitIgnoredFile()
     }
     
-    private func loadDirectories() {
-        viewModel.loadDirectories()
-    }
-    
     private func getRelativePath(for absolutePath: String) -> String {
         return viewModel.getRelativePath(for: absolutePath)
     }
@@ -398,16 +386,8 @@ struct ContentView: View {
         viewModel.debouncedPromptTokenCount()
     }
     
-    private func calculateFileTokensOnly() {
-        viewModel.calculateFileTokensOnly()
-    }
-    
     private func updateTotalTokenCount() {
         viewModel.updateTotalTokenCount()
-    }
-    
-    private func calculateTokenCount() {
-        viewModel.calculateTokenCount()
     }
     
     private func copyToClipboard() {
@@ -534,4 +514,4 @@ struct ContentView: View {
             )
         }
     }
-} 
+}

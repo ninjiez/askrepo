@@ -1,4 +1,3 @@
-
 import SwiftUI
 
 class ContentViewViewModel: ObservableObject {
@@ -29,6 +28,7 @@ class ContentViewViewModel: ObservableObject {
     @Published var fileTokenCache: [String: Int] = [:]
     @Published var promptTokenCount: Int = 0
     @Published var tokenCountingTask: Task<Void, Never>?
+    @Published var fileTokenCountingTask: Task<Void, Never>?
     
     @Published var isLoading: Bool = false
 
@@ -45,7 +45,29 @@ class ContentViewViewModel: ObservableObject {
         }
         
         selectedDirectories.append(url)
-        loadDirectories()
+        
+        // Load directories in background, then automatically select files for the NEW directory
+        Task {
+            await loadDirectories()
+            
+            // Only select files for the newly added directory
+            if let node = fileNodes.first(where: { $0.path == url.path }) {
+                let gitignoreParser = GitIgnoreParser.loadFromDirectory(url)
+                let files = FileSystemHelper.getAllNonIgnoredFilePaths(
+                    from: node,
+                    gitignoreParser: gitignoreParser,
+                    basePath: url.path
+                )
+                
+                await MainActor.run {
+                    for file in files {
+                        selectedFiles.insert(file)
+                    }
+                    // Trigger token calc after adding files
+                    triggerFileTokenCalculation()
+                }
+            }
+        }
         
         // Save to UserDefaults
         saveDirectoriesToUserDefaults()
@@ -66,7 +88,10 @@ class ContentViewViewModel: ObservableObject {
         let directoryPath = removedDirectory.path
         selectedFiles = selectedFiles.filter { !$0.hasPrefix(directoryPath) }
         
-        loadDirectories()
+        Task {
+            await loadDirectories()
+            // No need to trigger explicit token calc, as selectedFiles change triggers it via onChange
+        }
         
         // Save to UserDefaults
         saveDirectoriesToUserDefaults()
@@ -91,44 +116,64 @@ class ContentViewViewModel: ObservableObject {
         // Clear file token cache to force recalculation
         fileTokenCache.removeAll()
         
-        // Reload all directories
-        loadDirectories()
-        
-        // Update selected files - keep files that still exist, remove files that no longer exist
-        var updatedSelectedFiles: Set<String> = []
-        
-        for filePath in previouslySelectedFiles {
-            // Check if the file still exists
-            if FileManager.default.fileExists(atPath: filePath) {
-                // Check if the file is still not ignored by current settings
-                if !settings.shouldIgnore(path: filePath, isDirectory: false) {
-                    // Check if the file is still not ignored by gitignore
-                    var shouldInclude = true
-                    for directory in selectedDirectories {
-                        if filePath.hasPrefix(directory.path) {
-                            let gitignoreParser = GitIgnoreParser.loadFromDirectory(directory)
-                            if let parser = gitignoreParser {
-                                if parser.shouldIgnore(path: filePath, isDirectory: false, relativeTo: directory.path) {
-                                    shouldInclude = false
-                                    break
+        Task {
+            // Reload all directories in background
+            await loadDirectories()
+            
+            await MainActor.run {
+                // Update selected files - keep files that still exist, remove files that no longer exist
+                var updatedSelectedFiles: Set<String> = []
+                
+                for filePath in previouslySelectedFiles {
+                    // Check if the file still exists
+                    if FileManager.default.fileExists(atPath: filePath) {
+                        // Check if the file is still not ignored by current settings
+                        if !settings.shouldIgnore(path: filePath, isDirectory: false) {
+                            // Check if the file is still not ignored by gitignore
+                            var shouldInclude = true
+                            for directory in selectedDirectories {
+                                if filePath.hasPrefix(directory.path) {
+                                    let gitignoreParser = GitIgnoreParser.loadFromDirectory(directory)
+                                    if let parser = gitignoreParser {
+                                        if parser.shouldIgnore(path: filePath, isDirectory: false, relativeTo: directory.path) {
+                                            shouldInclude = false
+                                            break
+                                        }
+                                    }
                                 }
+                            }
+                            
+                            if shouldInclude {
+                                updatedSelectedFiles.insert(filePath)
                             }
                         }
                     }
-                    
-                    if shouldInclude {
-                        updatedSelectedFiles.insert(filePath)
-                    }
                 }
+                
+                // Update selected files
+                self.selectedFiles = updatedSelectedFiles
+                
+                // Trigger recalculation
+                triggerFileTokenCalculation()
             }
         }
-        
-        // Update selected files
-        selectedFiles = updatedSelectedFiles
-        
-        // Recalculate token counts
-        calculateFileTokensOnly()
-        updateTotalTokenCount()
+    }
+    
+    func handleSystemIgnoresChange() {
+        Task {
+            await loadDirectories()
+            
+            await MainActor.run {
+                // Remove any selected files that are now ignored
+                let ignoredFiles = selectedFiles.filter { filePath in
+                    settings.shouldIgnore(path: filePath, isDirectory: false)
+                }
+                for ignoredFile in ignoredFiles {
+                    selectedFiles.remove(ignoredFile)
+                }
+                triggerFileTokenCalculation()
+            }
+        }
     }
     
     func confirmIncludeGitIgnoredFile() {
@@ -141,44 +186,50 @@ class ContentViewViewModel: ObservableObject {
         gitIgnoreFileToSelect = nil
     }
     
-    func loadDirectories() {
+    @MainActor
+    func loadDirectories() async {
         isLoading = true
-        let group = DispatchGroup()
+        
+        // Run heavy IO in background task
         var newFileNodes: [FileNode] = []
-
-        for url in selectedDirectories {
-            group.enter()
-            FileSystemHelper.loadDirectoryAsync(url, settings: settings) { nodes in
-                let fileNode = FileNode(
-                    name: url.lastPathComponent,
-                    path: url.path,
-                    isDirectory: true,
-                    children: nodes,
-                    isExpanded: true,
-                    isIgnored: false
-                )
-                newFileNodes.append(fileNode)
-                group.leave()
-            }
-        }
-
-        group.notify(queue: .main) {
-            self.fileNodes = newFileNodes
-            self.isLoading = false
-            
-            // Automatically select all non-ignored files in the newly added directory
-            for node in newFileNodes {
-                let gitignoreParser = GitIgnoreParser.loadFromDirectory(URL(fileURLWithPath: node.path))
-                let allFilePaths = FileSystemHelper.getAllNonIgnoredFilePaths(
-                    from: node, 
-                    gitignoreParser: gitignoreParser, 
-                    basePath: node.path
-                )
-                for filePath in allFilePaths {
-                    self.selectedFiles.insert(filePath)
+        
+        await withTaskGroup(of: (Int, FileNode?).self) { group in
+            for (index, url) in selectedDirectories.enumerated() {
+                group.addTask {
+                    let result = await FileSystemHelper.loadDirectoryParallel(url, settings: self.settings)
+                    switch result {
+                    case .success(let nodes):
+                        let fileNode = FileNode(
+                            name: url.lastPathComponent,
+                            path: url.path,
+                            isDirectory: true,
+                            children: nodes,
+                            isExpanded: true,
+                            isIgnored: false
+                        )
+                        return (index, fileNode)
+                    case .failure(let error):
+                        print("Error loading directory \(url.path): \(error)")
+                        return (index, nil)
+                    }
                 }
             }
+            
+            // Collect results ensuring order is maintained based on original array if needed,
+            // or just collecting. Since selectedDirectories order matters, let's sort by index.
+            var nodesWithIndex: [(Int, FileNode)] = []
+            for await (index, node) in group {
+                if let node = node {
+                    nodesWithIndex.append((index, node))
+                }
+            }
+            
+            // Sort by original index
+            newFileNodes = nodesWithIndex.sorted(by: { $0.0 < $1.0 }).map { $0.1 }
         }
+        
+        self.fileNodes = newFileNodes
+        self.isLoading = false
     }
     
     func getRelativePath(for absolutePath: String) -> String {
@@ -238,31 +289,41 @@ class ContentViewViewModel: ObservableObject {
         }
     }
     
-    func calculateFileTokensOnly() {
-        // Only recalculate tokens for files that aren't cached
-        for filePath in selectedFiles {
-            if fileTokenCache[filePath] == nil {
-                if let content = FileSystemHelper.readFileContent(filePath) {
-                    fileTokenCache[filePath] = TokenCounter.countTokens(in: content)
-                }
+    func triggerFileTokenCalculation() {
+        fileTokenCountingTask?.cancel()
+        fileTokenCountingTask = Task {
+            // Debounce slightly (200ms) to aggregate rapid changes (e.g. checking multiple boxes)
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            
+            if !Task.isCancelled {
+                await calculateFileTokensAsync()
             }
         }
-        
-        // Remove cached tokens for files that are no longer selected
-        let selectedFilesSet = Set(selectedFiles)
-        fileTokenCache = fileTokenCache.filter { selectedFilesSet.contains($0.key) }
     }
     
     /// Async version of token calculation for better performance
     @MainActor
     func calculateFileTokensAsync() async {
+        // Identify files that need calculation (not in cache)
         let filesToProcess = Array(selectedFiles.filter { fileTokenCache[$0] == nil })
         
-        // Process files in batches to avoid overwhelming the system
-        let batchSize = 10
+        // Remove cached tokens for files that are no longer selected
+        let selectedFilesSet = Set(selectedFiles)
+        fileTokenCache = fileTokenCache.filter { selectedFilesSet.contains($0.key) }
+        updateTotalTokenCount() // Update immediately with what we have
+        
+        if filesToProcess.isEmpty {
+            return
+        }
+        
+        // Process files in larger batches to improve throughput for IO operations
+        let batchSize = 50
         let batches = filesToProcess.chunked(into: batchSize)
         
         for batch in batches {
+            // Check for cancellation between batches
+            if Task.isCancelled { break }
+            
             await withTaskGroup(of: (String, Int?).self) { group in
                 for filePath in batch {
                     group.addTask {
@@ -287,10 +348,6 @@ class ContentViewViewModel: ObservableObject {
             // Update UI after each batch
             updateTotalTokenCount()
         }
-        
-        // Remove cached tokens for files that are no longer selected
-        let selectedFilesSet = Set(selectedFiles)
-        fileTokenCache = fileTokenCache.filter { selectedFilesSet.contains($0.key) }
     }
     
     func updateTotalTokenCount() {
@@ -298,11 +355,12 @@ class ContentViewViewModel: ObservableObject {
         totalTokenCount = promptTokenCount + fileTokens
     }
     
+    // Legacy function kept for compatibility if needed, but logic moved to async
     func calculateTokenCount() {
-        // Legacy function for initial load - calculate everything at once
-        promptTokenCount = TokenCounter.countTokens(in: promptText)
-        calculateFileTokensOnly()
-        updateTotalTokenCount()
+        Task {
+             promptTokenCount = await TokenCounter.countTokensAsync(in: promptText)
+             await calculateFileTokensAsync()
+        }
     }
     
     func copyToClipboard() {
@@ -394,12 +452,8 @@ class ContentViewViewModel: ObservableObject {
             return cachedCount
         }
         
-        // Calculate and cache if not available
-        if let content = FileSystemHelper.readFileContent(filePath) {
-            let tokenCount = TokenCounter.countTokens(in: content)
-            fileTokenCache[filePath] = tokenCount
-            return tokenCount
-        }
+        // Return 0 if not calculated yet - don't block UI to calculate here
+        // The background task will populate this eventually
         return 0
     }
     
@@ -409,9 +463,14 @@ class ContentViewViewModel: ObservableObject {
                 let url = URL(fileURLWithPath: path)
                 // Check if directory still exists and is accessible
                 if FileManager.default.fileExists(atPath: path) {
-                    addDirectory(url)
+                    // Just append to array, actual loading happens via Task in onAppear triggers
+                    if !selectedDirectories.contains(where: { $0.path == path }) {
+                        selectedDirectories.append(url)
+                    }
                 }
             }
+            // Trigger load
+            Task { await loadDirectories() }
         }
     }
     
@@ -429,4 +488,7 @@ class ContentViewViewModel: ObservableObject {
             return "\(count)"
         }
     }
+    
+    // Legacy helper removal
+    // func calculateFileTokensOnly() was removed as it was synchronous and blocking
 }

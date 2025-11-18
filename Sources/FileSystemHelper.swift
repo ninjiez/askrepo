@@ -21,13 +21,15 @@ struct FileSystemHelper {
     }
     
     static func loadDirectoryAsync(_ url: URL, settings: Settings? = nil, completion: @escaping ([FileNode]) -> Void) {
-        DispatchQueue.global(qos: .userInitiated).async {
-            let fileNodes = loadDirectorySync(url, settings: settings)
-            DispatchQueue.main.async {
-                completion(fileNodes)
+        Task {
+            let result = await loadDirectoryParallel(url, settings: settings)
+            let nodes = (try? result.get()) ?? []
+            await MainActor.run {
+                completion(nodes)
             }
         }
     }
+
     static func loadDirectorySafe(_ url: URL, settings: Settings? = nil) -> Result<[FileNode], FileSystemError> {
         // Validate path first
         guard FilePathValidator.isValidDirectoryPath(url.path) else {
@@ -87,6 +89,130 @@ struct FileSystemHelper {
         case .failure(let error):
             print("Error loading directory: \(error.localizedDescription)")
             return []
+        }
+    }
+
+    /// Parallel async version of directory loading
+    static func loadDirectoryParallel(_ url: URL, settings: Settings? = nil) async -> Result<[FileNode], FileSystemError> {
+        // Validate path first
+        guard FilePathValidator.isValidDirectoryPath(url.path) else {
+            return .failure(.invalidPath(url.path))
+        }
+        
+        // Note: Security scoped resource access might be tricky in parallel tasks if not handled carefully.
+        // For now, we assume the root access covers children or we handle it per node if needed.
+        // But usually startAccessingSecurityScopedResource is needed for the specific URL.
+        // If we are just reading files inside a folder we have access to, it should be fine.
+        
+        guard url.startAccessingSecurityScopedResource() else {
+            return .failure(.accessDenied(url.path))
+        }
+        defer { url.stopAccessingSecurityScopedResource() }
+        
+        // Check if path exists and is a directory
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
+            return .failure(.fileNotFound(url.path))
+        }
+        
+        guard isDirectory.boolValue else {
+            return .failure(.notADirectory(url.path))
+        }
+        
+        // Load .gitignore if it exists
+        let gitignoreParser = GitIgnoreParser.loadFromDirectory(url)
+        
+        do {
+            let contents = try FileManager.default.contentsOfDirectory(
+                at: url,
+                includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey],
+                options: []
+            )
+            
+            // First, create nodes for all items (shallow)
+            // We do this synchronously to quickly filter out ignored files/dirs
+            let shallowNodes = contents.compactMap { fileURL -> (URL, Bool)? in
+                // We need to check if it's a directory to know if we should recurse
+                // But createFileNodeSafe does a lot of checks.
+                // Let's do a quick check here.
+                
+                do {
+                    let resourceValues = try fileURL.resourceValues(forKeys: [.isDirectoryKey, .isRegularFileKey])
+                    let isDir = resourceValues.isDirectory ?? false
+                    let isFile = resourceValues.isRegularFile ?? false
+                    
+                    guard isDir || isFile else { return nil }
+                    
+                    let name = fileURL.lastPathComponent
+                    
+                    // Check ignores
+                    let isIgnored = gitignoreParser?.shouldIgnore(path: fileURL.path, isDirectory: isDir, relativeTo: url.path) ?? false
+                    let isSystemIgnored = settings?.shouldIgnore(path: fileURL.path, isDirectory: isDir) ?? false
+                    
+                    if isIgnored || isSystemIgnored { return nil }
+                    
+                    if shouldSkipFile(name: name, isDirectory: isDir) { return nil }
+                    
+                    return (fileURL, isDir)
+                } catch {
+                    return nil
+                }
+            }
+            
+            // Now process them in parallel
+            return await withTaskGroup(of: FileNode?.self) { group in
+                for (fileURL, isDir) in shallowNodes {
+                    group.addTask {
+                        if isDir {
+                            // Recursively load directory in parallel
+                            let childrenResult = await loadDirectoryParallel(fileURL, settings: settings)
+                            let children = (try? childrenResult.get()) ?? []
+                            
+                            return FileNode(
+                                name: fileURL.lastPathComponent,
+                                path: fileURL.path,
+                                isDirectory: true,
+                                children: children,
+                                isExpanded: false,
+                                isIgnored: false
+                            )
+                        } else {
+                            // It's a file, just create the node
+                            return FileNode(
+                                name: fileURL.lastPathComponent,
+                                path: fileURL.path,
+                                isDirectory: false,
+                                children: [],
+                                isExpanded: false,
+                                isIgnored: false
+                            )
+                        }
+                    }
+                }
+                
+                var nodes: [FileNode] = []
+                for await node in group {
+                    if let node = node {
+                        nodes.append(node)
+                    }
+                }
+                
+                // Sort
+                let sortedNodes = nodes.sorted { lhs, rhs in
+                    if lhs.isDirectory && !rhs.isDirectory {
+                        return true
+                    } else if !lhs.isDirectory && rhs.isDirectory {
+                        return false
+                    } else {
+                        return lhs.name.localizedCompare(rhs.name) == .orderedAscending
+                    }
+                }
+                
+                return .success(sortedNodes)
+            }
+            
+        } catch {
+            return .failure(.unknown(error))
         }
     }
     
