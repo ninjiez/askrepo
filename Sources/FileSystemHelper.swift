@@ -115,8 +115,11 @@ struct FileSystemHelper {
             // Check if file should be ignored by gitignore
             let isGitIgnored = gitignoreParser?.shouldIgnore(path: url.path, isDirectory: isDirectory, relativeTo: basePath) ?? false
             
-            // Check if file should be ignored by system ignores
             let isSystemIgnored = ignoreMatcher?.shouldIgnore(path: url.path, isDirectory: isDirectory) ?? false
+
+            if isSystemIgnored {
+                return nil
+            }
             
             // Skip certain file types and directories (but keep gitignore files)
             if shouldSkipFile(name: name, isDirectory: isDirectory) {
@@ -132,8 +135,6 @@ struct FileSystemHelper {
             let ignoreReason: FileNode.IgnoreReason?
             if isGitIgnored {
                 ignoreReason = .gitignore
-            } else if isSystemIgnored {
-                ignoreReason = .system
             } else {
                 ignoreReason = nil
             }

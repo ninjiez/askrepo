@@ -324,7 +324,9 @@ struct FileSystemHelper {
             let name = url.lastPathComponent
             let isGitIgnored = gitignoreParser?.shouldIgnore(path: url.path, isDirectory: isDirectory, relativeTo: basePath) ?? false
             let isSystemIgnored = ignoreMatcher?.shouldIgnore(path: url.path, isDirectory: isDirectory) ?? false
-            
+
+            if isSystemIgnored { return nil }
+
             if shouldSkipFile(name: name, isDirectory: isDirectory) { return nil }
             
             var children: [FileNode] = []
@@ -334,7 +336,6 @@ struct FileSystemHelper {
             
             let ignoreReason: FileNode.IgnoreReason?
             if isGitIgnored { ignoreReason = .gitignore }
-            else if isSystemIgnored { ignoreReason = .system }
             else { ignoreReason = nil }
 
             return FileNode(

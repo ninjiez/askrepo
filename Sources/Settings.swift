@@ -468,7 +468,7 @@ struct SettingsView: View {
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(ColorScheme.Dynamic.textSecondary(colorScheme))
                         
-                        Text("Version 0.9")
+                        Text("Version 1.0")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(ColorScheme.Dynamic.textTertiary(colorScheme))
                     }

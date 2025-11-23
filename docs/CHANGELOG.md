@@ -5,6 +5,12 @@ All notable changes to AskRepo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2025-11-23
+
+### Changed
+- System blacklist entries are now completely excluded from directory scans and never appear in the UI tree.
+- Updated app and build metadata to version 1.0.
+
 ## [0.9.0] - 2025-07-21
 
 ### Added
